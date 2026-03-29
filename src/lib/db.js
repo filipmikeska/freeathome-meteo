@@ -1,32 +1,86 @@
-import { createClient } from '@libsql/client';
+// Turso HTTP Pipeline API klient
+// Používá přímé fetch volání místo @libsql/client (kompatibilita s Vercel + Node 24)
 
-let client = null;
+function getConfig() {
+  let url = process.env.TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
 
-export function getDb() {
-  if (!client) {
-    const url = process.env.TURSO_DATABASE_URL;
-    const authToken = process.env.TURSO_AUTH_TOKEN;
+  if (!url) throw new Error('TURSO_DATABASE_URL is not set');
 
-    if (!url) {
-      throw new Error('TURSO_DATABASE_URL is not set');
-    }
-
-    client = createClient({
-      url,
-      authToken,
-    });
+  if (url.startsWith('libsql://')) {
+    url = url.replace('libsql://', 'https://');
   }
-  return client;
+
+  return { url: url.trim(), authToken };
 }
 
-// Vloží nové měření
+// Provede SQL dotaz přes Turso HTTP Pipeline API
+async function execute(sql, args = []) {
+  const { url, authToken } = getConfig();
+
+  const stmtArgs = args.map((a) => {
+    if (a === null || a === undefined) return { type: 'null' };
+    if (typeof a === 'number') {
+      return Number.isInteger(a)
+        ? { type: 'integer', value: String(a) }
+        : { type: 'float', value: a };
+    }
+    return { type: 'text', value: String(a) };
+  });
+
+  const response = await fetch(`${url}/v2/pipeline`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      requests: [
+        { type: 'execute', stmt: { sql, args: stmtArgs } },
+        { type: 'close' },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Turso API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  const result = data.results?.[0];
+
+  if (result?.type === 'error') {
+    throw new Error(`SQL error: ${result.error?.message}`);
+  }
+
+  const execResult = result?.response?.result;
+  if (!execResult) return { rows: [], columns: [] };
+
+  // Převedeme Turso formát na jednodušší rows
+  const columns = execResult.cols?.map((c) => c.name) || [];
+  const rows = (execResult.rows || []).map((row) => {
+    const obj = {};
+    row.forEach((cell, i) => {
+      const col = columns[i];
+      if (cell.type === 'integer') obj[col] = parseInt(cell.value);
+      else if (cell.type === 'float') obj[col] = parseFloat(cell.value);
+      else if (cell.type === 'null') obj[col] = null;
+      else obj[col] = cell.value;
+    });
+    return obj;
+  });
+
+  return { rows, columns };
+}
+
+// === Public API ===
+
 export async function insertMeasurement(data) {
-  const db = getDb();
-  await db.execute({
-    sql: `INSERT INTO measurements (timestamp, temperature, brightness, wind_speed, rain,
-            rain_alarm, temp_alarm, wind_alarm, brightness_alarm)
-          VALUES (datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [
+  await execute(
+    `INSERT INTO measurements (timestamp, temperature, brightness, wind_speed, rain,
+        rain_alarm, temp_alarm, wind_alarm, brightness_alarm)
+     VALUES (datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
       data.temperature,
       data.brightness,
       data.windSpeed,
@@ -35,109 +89,91 @@ export async function insertMeasurement(data) {
       data.tempAlarm ?? 0,
       data.windAlarm ?? 0,
       data.brightnessAlarm ?? 0,
-    ],
-  });
+    ]
+  );
 }
 
-// Vrátí poslední měření
 export async function getLatestMeasurement() {
-  const db = getDb();
-  const result = await db.execute(
+  const { rows } = await execute(
     'SELECT * FROM measurements ORDER BY timestamp DESC LIMIT 1'
   );
-  return result.rows[0] || null;
+  return rows[0] || null;
 }
 
-// Vrátí historická data pro zadaný rozsah
 export async function getHistory({ from, to, limit = 1000 }) {
-  const db = getDb();
-  const result = await db.execute({
-    sql: `SELECT * FROM measurements
-          WHERE timestamp BETWEEN ? AND ?
-          ORDER BY timestamp ASC
-          LIMIT ?`,
-    args: [from, to, limit],
-  });
-  return result.rows;
+  const { rows } = await execute(
+    `SELECT * FROM measurements
+     WHERE timestamp BETWEEN ? AND ?
+     ORDER BY timestamp ASC LIMIT ?`,
+    [from, to, limit]
+  );
+  return rows;
 }
 
-// Vrátí hodinové agregace pro zadaný rozsah
 export async function getHourlyAggregates({ from, to }) {
-  const db = getDb();
-  const result = await db.execute({
-    sql: `SELECT * FROM hourly_aggregates
-          WHERE hour BETWEEN ? AND ?
-          ORDER BY hour ASC`,
-    args: [from, to],
-  });
-  return result.rows;
+  const { rows } = await execute(
+    `SELECT * FROM hourly_aggregates
+     WHERE hour BETWEEN ? AND ?
+     ORDER BY hour ASC`,
+    [from, to]
+  );
+  return rows;
 }
 
-// Vrátí denní agregace pro zadaný rozsah
 export async function getDailyAggregates({ from, to }) {
-  const db = getDb();
-  const result = await db.execute({
-    sql: `SELECT * FROM daily_aggregates
-          WHERE date BETWEEN ? AND ?
-          ORDER BY date ASC`,
-    args: [from, to],
-  });
-  return result.rows;
+  const { rows } = await execute(
+    `SELECT * FROM daily_aggregates
+     WHERE date BETWEEN ? AND ?
+     ORDER BY date ASC`,
+    [from, to]
+  );
+  return rows;
 }
 
-// Spočítá a uloží hodinovou agregaci pro danou hodinu
 export async function computeHourlyAggregate(hourStr) {
-  const db = getDb();
   const nextHour = new Date(new Date(hourStr).getTime() + 3600000)
     .toISOString()
     .slice(0, 19)
     .replace('T', ' ');
 
-  await db.execute({
-    sql: `INSERT OR REPLACE INTO hourly_aggregates
-            (hour, temp_avg, temp_min, temp_max, brightness_avg, brightness_max,
-             wind_avg, wind_max, rain_minutes)
-          SELECT
-            ?,
-            AVG(temperature), MIN(temperature), MAX(temperature),
-            AVG(brightness), MAX(brightness),
-            AVG(wind_speed), MAX(wind_speed),
-            SUM(CASE WHEN rain = 1 THEN 10 ELSE 0 END)
-          FROM measurements
-          WHERE timestamp >= ? AND timestamp < ?`,
-    args: [hourStr, hourStr, nextHour],
-  });
+  await execute(
+    `INSERT OR REPLACE INTO hourly_aggregates
+       (hour, temp_avg, temp_min, temp_max, brightness_avg, brightness_max,
+        wind_avg, wind_max, rain_minutes)
+     SELECT ?,
+       AVG(temperature), MIN(temperature), MAX(temperature),
+       AVG(brightness), MAX(brightness),
+       AVG(wind_speed), MAX(wind_speed),
+       SUM(CASE WHEN rain = 1 THEN 10 ELSE 0 END)
+     FROM measurements
+     WHERE timestamp >= ? AND timestamp < ?`,
+    [hourStr, hourStr, nextHour]
+  );
 }
 
-// Spočítá a uloží denní agregaci
 export async function computeDailyAggregate(dateStr) {
-  const db = getDb();
   const nextDate = new Date(new Date(dateStr + 'T00:00:00Z').getTime() + 86400000)
     .toISOString()
     .slice(0, 10);
 
-  await db.execute({
-    sql: `INSERT OR REPLACE INTO daily_aggregates
-            (date, temp_avg, temp_min, temp_max, brightness_avg, brightness_max,
-             wind_avg, wind_max, rain_total_minutes)
-          SELECT
-            ?,
-            AVG(temperature), MIN(temperature), MAX(temperature),
-            AVG(brightness), MAX(brightness),
-            AVG(wind_speed), MAX(wind_speed),
-            SUM(CASE WHEN rain = 1 THEN 10 ELSE 0 END)
-          FROM measurements
-          WHERE timestamp >= ? AND timestamp < ?`,
-    args: [dateStr, dateStr + ' 00:00:00', nextDate + ' 00:00:00'],
-  });
+  await execute(
+    `INSERT OR REPLACE INTO daily_aggregates
+       (date, temp_avg, temp_min, temp_max, brightness_avg, brightness_max,
+        wind_avg, wind_max, rain_total_minutes)
+     SELECT ?,
+       AVG(temperature), MIN(temperature), MAX(temperature),
+       AVG(brightness), MAX(brightness),
+       AVG(wind_speed), MAX(wind_speed),
+       SUM(CASE WHEN rain = 1 THEN 10 ELSE 0 END)
+     FROM measurements
+     WHERE timestamp >= ? AND timestamp < ?`,
+    [dateStr, dateStr + ' 00:00:00', nextDate + ' 00:00:00']
+  );
 }
 
-// Smaže raw záznamy starší než zadaný počet dní
 export async function cleanupOldMeasurements(retentionDays = 365) {
-  const db = getDb();
-  await db.execute({
-    sql: `DELETE FROM measurements
-          WHERE timestamp < datetime('now', ?)`,
-    args: [`-${retentionDays} days`],
-  });
+  await execute(
+    `DELETE FROM measurements WHERE timestamp < datetime('now', ?)`,
+    [`-${retentionDays} days`]
+  );
 }
