@@ -19,7 +19,7 @@ export default function Header() {
             </div>
           </div>
           <div className="text-sm text-gray-400">
-            49.3333°N, 17.5783°E
+            49.3794°N, 17.5658°E
           </div>
         </div>
       </div>
