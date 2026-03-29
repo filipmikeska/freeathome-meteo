@@ -1,0 +1,35 @@
+{
+  "name": "freeathome-meteo",
+  "version": "1.0.0",
+  "description": "Webová aplikace pro zobrazení a archivaci dat z meteostanice ABB free@home",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "migrate": "node scripts/migrate.mjs",
+    "seed": "node scripts/seed-mock-data.mjs",
+    "collect": "node scripts/collect-data.mjs",
+    "check-connection": "node scripts/check-connection.mjs"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.2",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.3.1",
+    "lucide-react": "^1.7.0",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^3.8.1",
+    "swr": "^2.4.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.11",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19"
+  }
+}
