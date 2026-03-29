@@ -14,7 +14,7 @@ export default function Header() {
                 Meteostanice
               </h1>
               <p className="text-sm text-gray-500">
-                ABB free@home &middot; RD Mikeskovi
+                ABB free@home &middot; Pacetluky
               </p>
             </div>
           </div>
