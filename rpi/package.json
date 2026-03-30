@@ -1,0 +1,13 @@
+{
+  "name": "freeathome-meteo-rpi",
+  "version": "1.0.0",
+  "description": "Sběr dat z ABB free@home meteostanice pro Raspberry Pi",
+  "type": "module",
+  "scripts": {
+    "collect": "node collect.mjs",
+    "test": "node collect.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  }
+}

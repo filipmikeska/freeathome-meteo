@@ -34,6 +34,10 @@ yarn-error.log*
 *.db
 *.sqlite
 
+# rpi logs
+rpi/collect.log
+rpi/node_modules
+
 # IDE
 .idea/
 .vscode/
