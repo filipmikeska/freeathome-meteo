@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, CalendarDays } from 'lucide-react';
 import CurrentWeather from './CurrentWeather';
 import WeatherChart from './WeatherChart';
 import DateRangePicker from './DateRangePicker';
-import { useCurrentWeather, useWeatherHistory } from '@/hooks/useWeatherData';
+import ForecastCard from './ForecastCard';
+import { useCurrentWeather, useWeatherHistory, useForecast } from '@/hooks/useWeatherData';
 import { formatTooltipTime } from '@/lib/utils';
 
 export default function Dashboard() {
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const [customTo, setCustomTo] = useState('');
 
   const { current, isLoading: currentLoading } = useCurrentWeather();
+  const { forecast, isLoading: forecastLoading } = useForecast();
 
   // Pro custom rozsah použijeme from/to, jinak range
   const historyParams =
@@ -53,6 +55,22 @@ export default function Dashboard() {
         <CurrentWeather data={current} isLoading={currentLoading} />
       </section>
 
+      {/* Předpověď */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-gray-500" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              Predpoved na 7 dni
+            </h2>
+          </div>
+          <span className="text-sm text-gray-400">
+            Zdroj: Open-Meteo (ECMWF)
+          </span>
+        </div>
+        <ForecastCard forecast={forecast} isLoading={forecastLoading} />
+      </section>
+
       {/* Grafy */}
       <section>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
@@ -77,6 +95,7 @@ export default function Dashboard() {
       {/* Informace */}
       <footer className="text-center text-sm text-gray-400 pb-4">
         Data z meteostanice ABB free@home WS-1 &middot;
+        Predpoved: Open-Meteo.com &middot;
         Aktualizace kazdych{' '}
         {Math.round((parseInt(process.env.NEXT_PUBLIC_POLL_INTERVAL || '60000') / 1000))} s
       </footer>

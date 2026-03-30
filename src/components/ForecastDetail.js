@@ -1,0 +1,76 @@
+'use client';
+
+import {
+  Sun, Moon, CloudSun, CloudMoon, Cloud, CloudFog,
+  CloudDrizzle, CloudRain, Snowflake, CloudLightning,
+} from 'lucide-react';
+import { getWeatherInfo } from '@/lib/weather-codes';
+
+const ICONS = {
+  Sun, Moon, CloudSun, CloudMoon, Cloud, CloudFog,
+  CloudDrizzle, CloudRain, Snowflake, CloudLightning,
+};
+
+function isNightTime(timeStr, sunrise, sunset) {
+  if (!sunrise || !sunset) return false;
+  const sunriseTime = sunrise.slice(11, 16);
+  const sunsetTime = sunset.slice(11, 16);
+  return timeStr < sunriseTime || timeStr >= sunsetTime;
+}
+
+export default function ForecastDetail({ hourly, sunrise, sunset }) {
+  if (!hourly?.length) return null;
+
+  // Zobrazíme každé 3 hodiny pro přehlednost
+  const filtered = hourly.filter((_, i) => i % 3 === 0);
+
+  return (
+    <div className="bg-gray-50 px-4 py-3 border-t border-gray-100">
+      <div className="overflow-x-auto">
+        <div className="flex gap-1 min-w-max">
+          {filtered.map((hour) => {
+            const isNight = isNightTime(hour.time, sunrise, sunset);
+            const weather = getWeatherInfo(hour.weatherCode, isNight);
+            const IconComponent = ICONS[weather.icon] || Cloud;
+
+            return (
+              <div
+                key={hour.time}
+                className="flex flex-col items-center px-3 py-2 rounded-lg hover:bg-white transition-colors min-w-[60px]"
+              >
+                {/* Čas */}
+                <span className="text-xs text-gray-500 font-medium">
+                  {hour.time}
+                </span>
+
+                {/* Ikona */}
+                <IconComponent
+                  className={`h-5 w-5 my-1.5 ${
+                    isNight ? 'text-indigo-400' : 'text-yellow-500'
+                  }`}
+                />
+
+                {/* Teplota */}
+                <span className="text-sm font-semibold text-gray-900">
+                  {Math.round(hour.temperature)}°
+                </span>
+
+                {/* Srážky */}
+                {hour.precipitation > 0 && (
+                  <span className="text-xs text-blue-500 mt-0.5">
+                    {hour.precipitation.toFixed(1)}
+                  </span>
+                )}
+
+                {/* Vlhkost */}
+                <span className="text-xs text-gray-400 mt-0.5">
+                  {hour.humidity}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

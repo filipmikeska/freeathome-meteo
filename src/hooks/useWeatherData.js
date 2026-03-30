@@ -41,3 +41,18 @@ export function useWeatherHistory(range = '24h', from = null, to = null) {
     isError: !!error,
   };
 }
+
+// Hook pro předpověď počasí (cache 1h na serveru, revalidace každou hodinu na klientu)
+export function useForecast() {
+  const { data, error, isLoading } = useSWR('/api/forecast', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 3600000, // 1 hodina
+    refreshInterval: 3600000,
+  });
+
+  return {
+    forecast: data,
+    isLoading,
+    isError: !!error,
+  };
+}
