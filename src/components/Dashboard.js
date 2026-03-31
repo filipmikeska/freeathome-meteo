@@ -58,7 +58,7 @@ export default function Dashboard() {
         {/* Východ a západ slunce */}
         {forecast?.daily && (
           <div className="mt-4">
-            <SunTimes forecast={forecast} />
+            <SunTimes forecast={forecast} brightness={current?.brightness} />
           </div>
         )}
       </section>
