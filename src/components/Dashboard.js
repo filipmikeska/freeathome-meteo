@@ -41,7 +41,7 @@ export default function Dashboard() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">
-            Aktualni pocasi
+            Aktuální počasí
           </h2>
           {current?.timestamp && (
             <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -61,7 +61,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5 text-gray-500" />
             <h2 className="text-lg font-semibold text-gray-900">
-              Predpoved na 7 dni
+              Předpověď na 7 dní
             </h2>
           </div>
           <span className="text-sm text-gray-400">
@@ -95,8 +95,8 @@ export default function Dashboard() {
       {/* Informace */}
       <footer className="text-center text-sm text-gray-400 pb-4">
         Data z meteostanice ABB free@home WS-1 &middot;
-        Predpoved: Open-Meteo.com &middot;
-        Aktualizace kazdych{' '}
+        Předpověď: Open-Meteo.com &middot;
+        Aktualizace každých{' '}
         {Math.round((parseInt(process.env.NEXT_PUBLIC_POLL_INTERVAL || '60000') / 1000))} s
       </footer>
     </div>

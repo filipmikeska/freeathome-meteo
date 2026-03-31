@@ -32,7 +32,7 @@ const METRICS = [
   },
   {
     key: 'windSpeed',
-    label: 'Vitr',
+    label: 'Vítr',
     color: '#6366f1',
     unit: ' m/s',
     domain: [0, 'auto'],
@@ -63,7 +63,7 @@ export default function WeatherChart({ data, range, isLoading }) {
   const toggleMetric = (key) => {
     setActiveMetrics((prev) => {
       if (prev.includes(key)) {
-        if (prev.length === 1) return prev; // alespon 1 aktivni
+        if (prev.length === 1) return prev; // alespoň 1 aktivní
         return prev.filter((k) => k !== key);
       }
       return [...prev, key];
@@ -74,7 +74,7 @@ export default function WeatherChart({ data, range, isLoading }) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="h-80 flex items-center justify-center">
-          <div className="animate-pulse text-gray-400">Nacitam data...</div>
+          <div className="animate-pulse text-gray-400">Načítám data...</div>
         </div>
       </div>
     );
@@ -84,7 +84,7 @@ export default function WeatherChart({ data, range, isLoading }) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="h-80 flex items-center justify-center text-gray-400">
-          Zadna data pro zvolene obdobi
+          Žádná data pro zvolené období
         </div>
       </div>
     );
@@ -185,7 +185,7 @@ export default function WeatherChart({ data, range, isLoading }) {
       {/* Rain bar (if data has rain) */}
       {data.some((d) => d.rain != null) && (
         <div className="mt-4">
-          <h4 className="text-sm font-medium text-gray-600 mb-2">Srazky</h4>
+          <h4 className="text-sm font-medium text-gray-600 mb-2">Srážky</h4>
           <div className="flex gap-px h-6 rounded overflow-hidden">
             {data.map((d, i) => (
               <div
@@ -197,7 +197,7 @@ export default function WeatherChart({ data, range, isLoading }) {
                 }`}
                 title={`${formatChartTime(d.timestamp, range)}: ${
                   Number(d.rain) === 1 || (d.rainMinutes && d.rainMinutes > 0)
-                    ? 'Dest'
+                    ? 'Déšť'
                     : 'Sucho'
                 }`}
               />

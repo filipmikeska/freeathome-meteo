@@ -55,7 +55,7 @@ export default function CurrentWeather({ data, isLoading }) {
   if (!data) {
     return (
       <div className="text-center py-8 text-gray-500">
-        Zatim nejsou k dispozici zadna data. Spustte sber dat.
+        Zatím nejsou k dispozici žádná data. Spusťte sběr dat.
       </div>
     );
   }
@@ -85,7 +85,7 @@ export default function CurrentWeather({ data, isLoading }) {
 
       <WeatherCard
         icon={Wind}
-        label="Vitr"
+        label="Vítr"
         value={formatWindSpeed(data.windSpeed)}
         detail={getWindDescription(data.windSpeed)}
         className="bg-slate-50 border-slate-200"
@@ -94,9 +94,9 @@ export default function CurrentWeather({ data, isLoading }) {
 
       <WeatherCard
         icon={raining ? Droplets : CloudOff}
-        label="Dest"
+        label="Déšť"
         value={formatRain(data.rain)}
-        detail={raining ? 'Aktivni srazky' : 'Bez srazek'}
+        detail={raining ? 'Aktivní srážky' : 'Bez srážek'}
         className={
           raining
             ? 'bg-blue-50 border-blue-300'

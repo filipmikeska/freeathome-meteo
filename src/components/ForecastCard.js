@@ -19,7 +19,7 @@ const ICONS = {
 function getDayLabel(dateStr) {
   const date = parseISO(dateStr);
   if (isToday(date)) return 'Dnes';
-  if (isTomorrow(date)) return 'Zitra';
+  if (isTomorrow(date)) return 'Zítra';
   return format(date, 'EEEE', { locale: cs });
 }
 
@@ -113,7 +113,7 @@ export default function ForecastCard({ forecast, isLoading }) {
   if (!forecast?.daily) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-400">
-        Predpoved neni k dispozici
+        Předpověď není k dispozici
       </div>
     );
   }

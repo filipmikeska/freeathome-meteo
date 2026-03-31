@@ -2,8 +2,8 @@
 
 const RANGES = [
   { value: '24h', label: '24 hodin' },
-  { value: '7d', label: '7 dni' },
-  { value: '30d', label: '30 dni' },
+  { value: '7d', label: '7 dní' },
+  { value: '30d', label: '30 dní' },
 ];
 
 export default function DateRangePicker({ range, onRangeChange, customFrom, customTo, onCustomChange }) {
@@ -31,7 +31,7 @@ export default function DateRangePicker({ range, onRangeChange, customFrom, cust
               : 'bg-white text-gray-700 hover:bg-gray-50'
           }`}
         >
-          Vlastni
+          Vlastní
         </button>
       </div>
 
