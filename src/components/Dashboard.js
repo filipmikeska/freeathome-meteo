@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { RefreshCw, CalendarDays } from 'lucide-react';
 import CurrentWeather from './CurrentWeather';
+import SunTimes from './SunTimes';
 import WeatherChart from './WeatherChart';
 import DateRangePicker from './DateRangePicker';
 import ForecastCard from './ForecastCard';
@@ -53,6 +54,13 @@ export default function Dashboard() {
           )}
         </div>
         <CurrentWeather data={current} isLoading={currentLoading} />
+
+        {/* Východ a západ slunce */}
+        {forecast?.daily && (
+          <div className="mt-4">
+            <SunTimes forecast={forecast} />
+          </div>
+        )}
       </section>
 
       {/* Předpověď */}
