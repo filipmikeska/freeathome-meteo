@@ -1,4 +1,5 @@
 import './globals.css';
+import { Analytics } from '@vercel/analytics/react';
 
 export const metadata = {
   title: 'Meteostanice Pacetluky | Aktuální počasí',
@@ -119,7 +120,10 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors">{children}</body>
+      <body className="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
