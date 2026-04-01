@@ -83,14 +83,14 @@ function DetailPopup({ type, stats, onClose }) {
     content = (
       <>
         <StatRow
-          label="Maximum"
+          label="Max"
           icon={TrendingUp}
           value={max ? formatTemperature(max.value) : '--'}
           time={max ? formatTime(max.timestamp) : '--'}
           color="text-red-500"
         />
         <StatRow
-          label="Minimum"
+          label="Min"
           icon={TrendingDown}
           value={min ? formatTemperature(min.value) : '--'}
           time={min ? formatTime(min.timestamp) : '--'}
@@ -103,14 +103,14 @@ function DetailPopup({ type, stats, onClose }) {
     content = (
       <>
         <StatRow
-          label="Maximum"
+          label="Max"
           icon={TrendingUp}
           value={max ? formatBrightness(max.value) : '--'}
           time={max ? formatTime(max.timestamp) : '--'}
           color="text-yellow-500"
         />
         <StatRow
-          label="Minimum"
+          label="Min"
           icon={TrendingDown}
           value={min ? formatBrightness(min.value) : '--'}
           time={min ? formatTime(min.timestamp) : '--'}
@@ -123,14 +123,14 @@ function DetailPopup({ type, stats, onClose }) {
     content = (
       <>
         <StatRow
-          label="Nárazový max"
+          label="Max"
           icon={TrendingUp}
           value={max ? formatWindSpeed(max.value) : '--'}
           time={max ? formatTime(max.timestamp) : '--'}
           color="text-indigo-500"
         />
         <StatRow
-          label="Minimum"
+          label="Min"
           icon={TrendingDown}
           value={min ? formatWindSpeed(min.value) : '--'}
           time={min ? formatTime(min.timestamp) : '--'}
@@ -237,7 +237,14 @@ export default function CurrentWeather({ data, isLoading }) {
         icon={Thermometer}
         label="Teplota"
         value={formatTemperature(data.temperature)}
-        detail={Number(data.temperature) < 0 ? 'Pod bodem mrazu' : null}
+        detail={(() => {
+          const t = Number(data.temperature);
+          if (t < 0) return 'Pod bodem mrazu';
+          if (t < 10) return 'Chladno';
+          if (t < 25) return 'Příjemně';
+          if (t < 35) return 'Horko';
+          return 'Vedro';
+        })()}
         className={getTemperatureBg(data.temperature)}
         iconColor={getTemperatureColor(data.temperature)}
         type="temperature"
