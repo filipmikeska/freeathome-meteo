@@ -40,6 +40,57 @@ export function getWeatherInfo(code, isNight = false) {
   };
 }
 
+// Yr.no symbol_code → WMO code mapping
+const YR_SYMBOL_MAP = {
+  clearsky: 0,
+  fair: 1,
+  partlycloudy: 2,
+  cloudy: 3,
+  fog: 45,
+  lightrain: 61,
+  rain: 63,
+  heavyrain: 65,
+  lightrainshowers: 80,
+  rainshowers: 81,
+  heavyrainshowers: 82,
+  lightsleet: 56,
+  sleet: 66,
+  heavysleet: 67,
+  lightsleetshowers: 56,
+  sleetshowers: 66,
+  heavysleetshowers: 67,
+  lightsnow: 71,
+  snow: 73,
+  heavysnow: 75,
+  lightsnowshowers: 85,
+  snowshowers: 85,
+  heavysnowshowers: 86,
+  lightrainandthunder: 95,
+  rainandthunder: 95,
+  heavyrainandthunder: 99,
+  sleetandthunder: 95,
+  snowandthunder: 95,
+  lightrainshowersandthunder: 95,
+  rainshowersandthunder: 96,
+  heavyrainshowersandthunder: 99,
+  lightsleetandthunder: 95,
+  heavysleetandthunder: 95,
+  lightsnowandthunder: 95,
+  heavysnowandthunder: 95,
+  lightssleetshowersandthunder: 95,
+  sleetshowersandthunder: 95,
+  heavysleetshowersandthunder: 95,
+  lightsnowshowersandthunder: 95,
+  snowshowersandthunder: 95,
+  heavysnowshowersandthunder: 95,
+};
+
+export function yrSymbolToWmoCode(symbolCode) {
+  const base = symbolCode.replace(/_(day|night|polartwilight)$/, '');
+  const isNight = symbolCode.endsWith('_night');
+  return { wmoCode: YR_SYMBOL_MAP[base] ?? 3, isNight };
+}
+
 // Mapování názvu ikony na komponentu se provede v komponentě
 export const ICON_MAP = {
   Sun: 'Sun',

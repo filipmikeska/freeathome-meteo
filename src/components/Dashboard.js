@@ -6,7 +6,7 @@ import { RefreshCw, CalendarDays } from 'lucide-react';
 import CurrentWeather from './CurrentWeather';
 import DateRangePicker from './DateRangePicker';
 import InstallLink from './InstallLink';
-import { useCurrentWeather, useWeatherHistory, useForecast, useMoonData } from '@/hooks/useWeatherData';
+import { useCurrentWeather, useWeatherHistory, useForecast, useForecastYr, useMoonData } from '@/hooks/useWeatherData';
 import { formatTooltipTime } from '@/lib/utils';
 
 // Dynamic imports — těžké komponenty se načtou až když jsou potřeba
@@ -58,6 +58,7 @@ export default function Dashboard() {
 
   const { current, isLoading: currentLoading } = useCurrentWeather();
   const { forecast, isLoading: forecastLoading } = useForecast();
+  const { forecastYr, isLoading: forecastYrLoading } = useForecastYr();
   const { moon, isLoading: moonLoading } = useMoonData();
 
   // Pro custom rozsah použijeme from/to, jinak range
@@ -121,6 +122,22 @@ export default function Dashboard() {
         <ForecastCard forecast={forecast} isLoading={forecastLoading} />
       </section>
 
+      {/* Předpověď Yr.no */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Předpověď na 7 dní
+            </h2>
+          </div>
+          <span className="text-sm text-gray-400 dark:text-gray-500">
+            Zdroj: Yr.no (MET Norway)
+          </span>
+        </div>
+        <ForecastCard forecast={forecastYr} isLoading={forecastYrLoading} />
+      </section>
+
       {/* Grafy */}
       <section>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
@@ -145,7 +162,7 @@ export default function Dashboard() {
       {/* Informace */}
       <footer className="text-center text-sm text-gray-400 dark:text-gray-500 pb-4">
         Data z meteostanice ABB free@home WS-1 &middot;
-        Předpověď: Open-Meteo.com &middot;
+        Předpověď: Open-Meteo.com, Yr.no &middot;
         Aktualizace každých{' '}
         {Math.round((parseInt(process.env.NEXT_PUBLIC_POLL_INTERVAL || '60000') / 1000))} s
         <br />

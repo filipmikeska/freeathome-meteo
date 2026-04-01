@@ -86,3 +86,18 @@ export function useForecast() {
     isError: !!error,
   };
 }
+
+// Hook pro předpověď Yr.no (MET Norway)
+export function useForecastYr() {
+  const { data, error, isLoading } = useSWR('/api/forecast-yr', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 3600000,
+    refreshInterval: 3600000,
+  });
+
+  return {
+    forecastYr: data,
+    isLoading,
+    isError: !!error,
+  };
+}
