@@ -142,7 +142,7 @@ export default function Dashboard() {
       <section>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Historie
+            Historie měření
           </h2>
           <DateRangePicker
             range={range}
