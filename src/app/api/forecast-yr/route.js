@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { yrSymbolToWmoCode } from '@/lib/weather-codes';
+import { saveForecastSnapshot } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 let cachedForecast = null;
 let cacheTimestamp = 0;
+let lastSnapshotDate = null;
 const CACHE_TTL = 60 * 60 * 1000; // 1 hodina
 
 const LAT = 49.3794;
@@ -181,6 +183,28 @@ export async function GET() {
 
     cachedForecast = result;
     cacheTimestamp = now;
+
+    // Uložit snapshot předpovědi 1x denně
+    const today = new Date().toISOString().slice(0, 10);
+    if (lastSnapshotDate !== today) {
+      lastSnapshotDate = today;
+      try {
+        for (let i = 0; i < result.daily.length; i++) {
+          const day = result.daily[i];
+          await saveForecastSnapshot({
+            source: 'yr',
+            forecastDate: day.date,
+            horizon: i,
+            tempMax: day.tempMax,
+            tempMin: day.tempMin,
+            windMax: Math.round(day.windMax / 3.6 * 10) / 10, // km/h → m/s
+            precipitation: day.precipitation,
+          });
+        }
+      } catch (e) {
+        console.error('Error saving Yr.no snapshot:', e);
+      }
+    }
 
     return NextResponse.json(result);
   } catch (error) {

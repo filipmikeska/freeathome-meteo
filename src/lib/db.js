@@ -172,6 +172,25 @@ export async function computeDailyAggregate(dateStr) {
   );
 }
 
+export async function saveForecastSnapshot({ source, forecastDate, horizon, tempMax, tempMin, windMax, precipitation }) {
+  await execute(
+    `INSERT OR REPLACE INTO forecast_snapshots
+       (source, forecast_date, horizon, fetched_at, temp_max, temp_min, wind_max, precipitation)
+     VALUES (?, ?, ?, datetime('now'), ?, ?, ?, ?)`,
+    [source, forecastDate, horizon, tempMax, tempMin, windMax, precipitation]
+  );
+}
+
+export async function getForecastSnapshots({ from, to }) {
+  const { rows } = await execute(
+    `SELECT * FROM forecast_snapshots
+     WHERE forecast_date BETWEEN ? AND ?
+     ORDER BY forecast_date ASC, source ASC`,
+    [from, to]
+  );
+  return rows;
+}
+
 export async function cleanupOldMeasurements(retentionDays = 365) {
   await execute(
     `DELETE FROM measurements WHERE timestamp < datetime('now', ?)`,

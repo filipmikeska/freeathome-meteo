@@ -59,6 +59,22 @@ const MIGRATIONS = [
     wind_max REAL,
     rain_total_minutes INTEGER DEFAULT 0
   )`,
+
+  // Snapshoty předpovědí pro porovnání s měřením
+  `CREATE TABLE IF NOT EXISTS forecast_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    forecast_date TEXT NOT NULL,
+    horizon INTEGER DEFAULT 0,
+    fetched_at TEXT NOT NULL,
+    temp_max REAL,
+    temp_min REAL,
+    wind_max REAL,
+    precipitation REAL
+  )`,
+
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_forecast_snapshots_unique
+   ON forecast_snapshots(source, forecast_date, horizon)`,
 ];
 
 async function migrate() {

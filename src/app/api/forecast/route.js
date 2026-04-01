@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
+import { saveForecastSnapshot } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 // Cache předpovědi na 1 hodinu
 let cachedForecast = null;
 let cacheTimestamp = 0;
+let lastSnapshotDate = null;
 const CACHE_TTL = 60 * 60 * 1000; // 1 hodina
 
 const LAT = 49.3794;
@@ -74,6 +76,28 @@ export async function GET() {
     // Uložit do cache
     cachedForecast = result;
     cacheTimestamp = now;
+
+    // Uložit snapshot předpovědi 1x denně
+    const today = new Date().toISOString().slice(0, 10);
+    if (lastSnapshotDate !== today) {
+      lastSnapshotDate = today;
+      try {
+        for (let i = 0; i < daily.length; i++) {
+          const day = daily[i];
+          await saveForecastSnapshot({
+            source: 'open-meteo',
+            forecastDate: day.date,
+            horizon: i,
+            tempMax: day.tempMax,
+            tempMin: day.tempMin,
+            windMax: Math.round(day.windMax / 3.6 * 10) / 10, // km/h → m/s
+            precipitation: day.precipitation,
+          });
+        }
+      } catch (e) {
+        console.error('Error saving Open-Meteo snapshot:', e);
+      }
+    }
 
     return NextResponse.json(result);
   } catch (error) {
