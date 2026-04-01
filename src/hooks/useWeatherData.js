@@ -57,6 +57,21 @@ export function useMoonData() {
   };
 }
 
+// Hook pro dnešní statistiky (min/max s časy)
+export function useTodayStats() {
+  const { data, error, isLoading } = useSWR('/api/stats', fetcher, {
+    revalidateOnFocus: true,
+    dedupingInterval: 60000,
+    refreshInterval: POLL_INTERVAL,
+  });
+
+  return {
+    stats: data,
+    isLoading,
+    isError: !!error,
+  };
+}
+
 // Hook pro předpověď počasí (cache 1h na serveru, revalidace každou hodinu na klientu)
 export function useForecast() {
   const { data, error, isLoading } = useSWR('/api/forecast', fetcher, {
