@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { RefreshCw, CalendarDays } from 'lucide-react';
 import CurrentWeather from './CurrentWeather';
 import DateRangePicker from './DateRangePicker';
+import InstallLink from './InstallLink';
 import { useCurrentWeather, useWeatherHistory, useForecast, useMoonData } from '@/hooks/useWeatherData';
 import { formatTooltipTime } from '@/lib/utils';
 
@@ -149,6 +150,8 @@ export default function Dashboard() {
         {Math.round((parseInt(process.env.NEXT_PUBLIC_POLL_INTERVAL || '60000') / 1000))} s
         <br />
         Kontakt: <a href="mailto:meteopacetluky@gmail.com" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 underline">meteopacetluky@gmail.com</a>
+        <br />
+        <InstallLink />
       </footer>
     </div>
   );
