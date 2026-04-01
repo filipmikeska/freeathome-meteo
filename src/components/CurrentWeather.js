@@ -24,12 +24,12 @@ function WeatherCard({ icon: Icon, label, value, detail, className, iconColor })
   return (
     <div className={`rounded-xl border p-5 transition-all ${className}`}>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-gray-600">{label}</span>
+        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</span>
         <Icon className={`h-5 w-5 ${iconColor}`} />
       </div>
-      <div className="text-2xl font-bold text-gray-900">{value}</div>
+      <div className="text-2xl font-bold text-gray-900 dark:text-white">{value}</div>
       {detail && (
-        <div className="text-sm text-gray-500 mt-1">{detail}</div>
+        <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{detail}</div>
       )}
     </div>
   );
@@ -42,10 +42,10 @@ export default function CurrentWeather({ data, isLoading }) {
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="rounded-xl border border-gray-200 p-5 animate-pulse"
+            className="rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse"
           >
-            <div className="h-4 bg-gray-200 rounded w-20 mb-3" />
-            <div className="h-8 bg-gray-200 rounded w-24" />
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-3" />
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-24" />
           </div>
         ))}
       </div>
@@ -54,7 +54,7 @@ export default function CurrentWeather({ data, isLoading }) {
 
   if (!data) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
         Zatím nejsou k dispozici žádná data. Spusťte sběr dat.
       </div>
     );
@@ -79,7 +79,7 @@ export default function CurrentWeather({ data, isLoading }) {
         label="Jas"
         value={formatBrightness(data.brightness)}
         detail={isDay ? 'Den' : 'Noc'}
-        className="bg-yellow-50 border-yellow-200"
+        className="bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800"
         iconColor="text-yellow-500"
       />
 
@@ -88,7 +88,7 @@ export default function CurrentWeather({ data, isLoading }) {
         label="Vítr"
         value={formatWindSpeed(data.windSpeed)}
         detail={getWindDescription(data.windSpeed)}
-        className="bg-slate-50 border-slate-200"
+        className="bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700"
         iconColor="text-slate-500"
       />
 
@@ -99,8 +99,8 @@ export default function CurrentWeather({ data, isLoading }) {
         detail={raining ? 'Aktivní srážky' : 'Bez srážek'}
         className={
           raining
-            ? 'bg-blue-50 border-blue-300'
-            : 'bg-gray-50 border-gray-200'
+            ? 'bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-800'
+            : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700'
         }
         iconColor={raining ? 'text-blue-500' : 'text-gray-400'}
       />

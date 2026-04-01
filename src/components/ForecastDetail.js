@@ -25,7 +25,7 @@ export default function ForecastDetail({ hourly, sunrise, sunset }) {
   const filtered = hourly.filter((_, i) => i % 3 === 0);
 
   return (
-    <div className="bg-gray-50 px-4 py-3 border-t border-gray-100">
+    <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 border-t border-gray-100 dark:border-gray-700">
       <div className="overflow-x-auto">
         <div className="flex gap-1 min-w-max">
           {filtered.map((hour) => {
@@ -36,10 +36,10 @@ export default function ForecastDetail({ hourly, sunrise, sunset }) {
             return (
               <div
                 key={hour.time}
-                className="flex flex-col items-center px-3 py-2 rounded-lg hover:bg-white transition-colors min-w-[60px]"
+                className="flex flex-col items-center px-3 py-2 rounded-lg hover:bg-white dark:hover:bg-gray-800 transition-colors min-w-[60px]"
               >
                 {/* Čas */}
-                <span className="text-xs text-gray-500 font-medium">
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                   {hour.time}
                 </span>
 
@@ -51,13 +51,13 @@ export default function ForecastDetail({ hourly, sunrise, sunset }) {
                 />
 
                 {/* Teplota */}
-                <span className="text-sm font-semibold text-gray-900">
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">
                   {Math.round(hour.temperature)}°
                 </span>
 
                 {/* Srážky */}
                 {hour.precipitation > 0 && (
-                  <span className="text-xs text-blue-500 mt-0.5">
+                  <span className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">
                     {hour.precipitation.toFixed(1)}
                   </span>
                 )}

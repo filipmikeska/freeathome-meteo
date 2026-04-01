@@ -43,8 +43,8 @@ function CustomTooltip({ active, payload, label, range }) {
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-      <p className="text-sm font-medium text-gray-600 mb-2">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3">
+      <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
         {formatTooltipTime(label)}
       </p>
       {payload.map((entry) => (
@@ -72,7 +72,7 @@ export default function WeatherChart({ data, range, isLoading }) {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="h-80 flex items-center justify-center">
           <div className="animate-pulse text-gray-400">Načítám data...</div>
         </div>
@@ -82,7 +82,7 @@ export default function WeatherChart({ data, range, isLoading }) {
 
   if (!data?.length) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="h-80 flex items-center justify-center text-gray-400">
           Žádná data pro zvolené období
         </div>
@@ -101,7 +101,7 @@ export default function WeatherChart({ data, range, isLoading }) {
   const ChartComponent = showArea ? AreaChart : LineChart;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
       {/* Přepínač metrik */}
       <div className="flex flex-wrap gap-2 mb-4">
         {METRICS.map((metric) => {
@@ -113,7 +113,7 @@ export default function WeatherChart({ data, range, isLoading }) {
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                 isActive
                   ? 'text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
               style={isActive ? { backgroundColor: metric.color } : {}}
             >
@@ -126,11 +126,11 @@ export default function WeatherChart({ data, range, isLoading }) {
       {/* Graf */}
       <ResponsiveContainer width="100%" height={350}>
         <ChartComponent data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, #f0f0f0)" className="[.dark_&]:stroke-gray-700" />
           <XAxis
             dataKey="timestamp"
             tickFormatter={(t) => formatChartTime(t, range)}
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 12, fill: '#9ca3af' }}
             stroke="#9ca3af"
           />
           {activeMetrics.map((key, index) => {
@@ -141,7 +141,7 @@ export default function WeatherChart({ data, range, isLoading }) {
                 yAxisId={key}
                 orientation={index === 0 ? 'left' : 'right'}
                 domain={metric.domain}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 12, fill: metric.color }}
                 stroke={metric.color}
                 tickFormatter={(v) => `${v}${metric.unit}`}
               />
@@ -185,7 +185,7 @@ export default function WeatherChart({ data, range, isLoading }) {
       {/* Rain bar (if data has rain) */}
       {data.some((d) => d.rain != null) && (
         <div className="mt-4">
-          <h4 className="text-sm font-medium text-gray-600 mb-2">Srážky</h4>
+          <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Srážky</h4>
           <div className="flex gap-px h-6 rounded overflow-hidden">
             {data.map((d, i) => (
               <div
@@ -193,7 +193,7 @@ export default function WeatherChart({ data, range, isLoading }) {
                 className={`flex-1 ${
                   Number(d.rain) === 1 || (d.rainMinutes && d.rainMinutes > 0)
                     ? 'bg-blue-400'
-                    : 'bg-gray-100'
+                    : 'bg-gray-100 dark:bg-gray-700'
                 }`}
                 title={`${formatChartTime(d.timestamp, range)}: ${
                   Number(d.rain) === 1 || (d.rainMinutes && d.rainMinutes > 0)

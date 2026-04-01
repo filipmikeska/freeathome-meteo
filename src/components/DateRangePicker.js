@@ -9,7 +9,7 @@ const RANGES = [
 export default function DateRangePicker({ range, onRangeChange, customFrom, customTo, onCustomChange }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="flex rounded-lg overflow-hidden border border-gray-300">
+      <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
         {RANGES.map((r) => (
           <button
             key={r.value}
@@ -17,7 +17,7 @@ export default function DateRangePicker({ range, onRangeChange, customFrom, cust
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               range === r.value
                 ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             {r.label}
@@ -28,7 +28,7 @@ export default function DateRangePicker({ range, onRangeChange, customFrom, cust
           className={`px-4 py-2 text-sm font-medium transition-colors ${
             range === 'custom'
               ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
           Vlastní
@@ -41,14 +41,14 @@ export default function DateRangePicker({ range, onRangeChange, customFrom, cust
             type="datetime-local"
             value={customFrom}
             onChange={(e) => onCustomChange('from', e.target.value)}
-            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
-          <span className="text-gray-500">—</span>
+          <span className="text-gray-500 dark:text-gray-400">—</span>
           <input
             type="datetime-local"
             value={customTo}
             onChange={(e) => onCustomChange('to', e.target.value)}
-            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
       )}

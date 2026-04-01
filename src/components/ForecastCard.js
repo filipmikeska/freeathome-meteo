@@ -28,22 +28,22 @@ function DayRow({ day, hourly, isExpanded, onToggle }) {
   const IconComponent = ICONS[weather.icon] || Cloud;
 
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
+    <div className="border-b border-gray-100 dark:border-gray-700 last:border-b-0">
       <button
         onClick={onToggle}
-        className="w-full flex items-center px-4 py-3 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
       >
         {/* Ikona */}
         <div className="w-10 flex justify-center">
-          <IconComponent className="h-6 w-6 text-blue-500" />
+          <IconComponent className="h-6 w-6 text-blue-500 dark:text-blue-400" />
         </div>
 
         {/* Den a popis */}
         <div className="flex-1 text-left ml-3">
-          <div className="font-medium text-gray-900 capitalize">
+          <div className="font-medium text-gray-900 dark:text-white capitalize">
             {getDayLabel(day.date)}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 dark:text-gray-400">
             {weather.label} &middot; {format(parseISO(day.date), 'd.M.', { locale: cs })}
           </div>
         </div>
@@ -52,7 +52,7 @@ function DayRow({ day, hourly, isExpanded, onToggle }) {
         {day.precipitation > 0 && (
           <div className="flex items-center gap-1 mr-4">
             <Droplets className="h-3.5 w-3.5 text-blue-400" />
-            <span className="text-sm text-blue-500">
+            <span className="text-sm text-blue-500 dark:text-blue-400">
               {day.precipitation.toFixed(1)} mm
             </span>
           </div>
@@ -61,18 +61,18 @@ function DayRow({ day, hourly, isExpanded, onToggle }) {
         {/* Vítr */}
         <div className="flex items-center gap-1 mr-4 w-16">
           <Wind className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
             {Math.round(day.windMax / 3.6)} m/s
           </span>
         </div>
 
         {/* Min/Max teplota */}
         <div className="flex items-center gap-2 w-24 justify-end mr-2">
-          <span className="text-sm text-blue-500 font-medium">
+          <span className="text-sm text-blue-500 dark:text-blue-400 font-medium">
             {Math.round(day.tempMin)}°
           </span>
-          <div className="w-12 h-1.5 rounded-full bg-gradient-to-r from-blue-300 to-red-300" />
-          <span className="text-sm text-red-500 font-medium">
+          <div className="w-12 h-1.5 rounded-full bg-gradient-to-r from-blue-300 to-red-300 dark:from-blue-500 dark:to-red-500" />
+          <span className="text-sm text-red-500 dark:text-red-400 font-medium">
             {Math.round(day.tempMax)}°
           </span>
         </div>
@@ -100,10 +100,10 @@ export default function ForecastCard({ forecast, isLoading }) {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="animate-pulse space-y-3">
           {[...Array(7)].map((_, i) => (
-            <div key={i} className="h-12 bg-gray-100 rounded" />
+            <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700 rounded" />
           ))}
         </div>
       </div>
@@ -112,14 +112,14 @@ export default function ForecastCard({ forecast, isLoading }) {
 
   if (!forecast?.daily) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-400">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 text-center text-gray-400">
         Předpověď není k dispozici
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       {forecast.daily.map((day) => (
         <DayRow
           key={day.date}

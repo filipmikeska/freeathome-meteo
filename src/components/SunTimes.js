@@ -1,6 +1,6 @@
 'use client';
 
-import { Sunrise, Sunset, Clock, Moon } from 'lucide-react';
+import { Sunrise, Sunset, Clock } from 'lucide-react';
 
 function formatSunTime(isoString) {
   if (!isoString) return '--:--';
@@ -34,14 +34,6 @@ function getSunProgress(sunrise, sunset) {
   return ((now - rise) / (set - rise)) * 100;
 }
 
-// Calculate position on quadratic bezier: P0(10,70) Q(100,-10) P2(190,70)
-function getSunPosition(progress) {
-  const t = progress / 100;
-  const x = (1-t)*(1-t)*10 + 2*(1-t)*t*100 + t*t*190;
-  const y = (1-t)*(1-t)*70 + 2*(1-t)*t*(-10) + t*t*70;
-  return { x, y };
-}
-
 export default function SunTimes({ forecast, brightness }) {
   const today = forecast?.daily?.[0];
   if (!today) return null;
@@ -53,10 +45,10 @@ export default function SunTimes({ forecast, brightness }) {
   const brightnessLabel = formatBrightnessShort(brightness);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
       <div className="flex items-center gap-2 mb-4">
         <Clock className="h-4 w-4 text-gray-400" />
-        <span className="text-sm font-medium text-gray-600">
+        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
           Délka dne: {daylight || '--'}
         </span>
       </div>
@@ -65,7 +57,7 @@ export default function SunTimes({ forecast, brightness }) {
       <div className="relative h-24 mb-3">
         <svg viewBox="0 0 200 95" className="w-full h-full" preserveAspectRatio="xMidYMax meet">
           {/* Horizon line */}
-          <line x1="10" y1="80" x2="190" y2="80" stroke="#e5e7eb" strokeWidth="1" />
+          <line x1="10" y1="80" x2="190" y2="80" stroke="currentColor" className="text-gray-200 dark:text-gray-600" strokeWidth="1" />
 
           {/* Sun arc (dashed) */}
           <path
@@ -103,7 +95,6 @@ export default function SunTimes({ forecast, brightness }) {
                 {/* Brightness bubble */}
                 {brightnessLabel && (
                   <>
-                    {/* Bubble background */}
                     <rect
                       x={x - bubbleWidth/2}
                       y={bubbleY - 8}
@@ -114,7 +105,6 @@ export default function SunTimes({ forecast, brightness }) {
                       stroke="#fbbf24"
                       strokeWidth="0.8"
                     />
-                    {/* Bubble text */}
                     <text
                       x={x}
                       y={bubbleY + 1.5}
@@ -126,7 +116,6 @@ export default function SunTimes({ forecast, brightness }) {
                     >
                       ☀ {brightnessLabel}
                     </text>
-                    {/* Bubble arrow */}
                     <polygon
                       points={`${x-3},${bubbleY+8} ${x+3},${bubbleY+8} ${x},${bubbleY+12}`}
                       fill="#fffbeb"
@@ -134,7 +123,6 @@ export default function SunTimes({ forecast, brightness }) {
                       strokeWidth="0.8"
                       strokeLinejoin="round"
                     />
-                    {/* Cover arrow top line */}
                     <line
                       x1={x-3}
                       y1={bubbleY+8}
@@ -156,19 +144,17 @@ export default function SunTimes({ forecast, brightness }) {
 
           {/* Night indicator (when sun is below horizon) */}
           {!isDay && (
-            <>
-              <text
-                x="100"
-                y="45"
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize="8"
-                fill="#6366f1"
-                opacity="0.7"
-              >
-                🌙 {brightnessLabel || '0 lux'}
-              </text>
-            </>
+            <text
+              x="100"
+              y="45"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="8"
+              fill="#6366f1"
+              opacity="0.7"
+            >
+              🌙 {brightnessLabel || '0 lux'}
+            </text>
           )}
         </svg>
       </div>
@@ -178,8 +164,8 @@ export default function SunTimes({ forecast, brightness }) {
         <div className="flex items-center gap-2">
           <Sunrise className="h-5 w-5 text-orange-400" />
           <div>
-            <div className="text-xs text-gray-500">Východ slunce</div>
-            <div className="text-lg font-semibold text-gray-900">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Východ slunce</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-white">
               {formatSunTime(sunrise)}
             </div>
           </div>
@@ -187,8 +173,8 @@ export default function SunTimes({ forecast, brightness }) {
 
         <div className="flex items-center gap-2">
           <div className="text-right">
-            <div className="text-xs text-gray-500">Západ slunce</div>
-            <div className="text-lg font-semibold text-gray-900">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Západ slunce</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-white">
               {formatSunTime(sunset)}
             </div>
           </div>

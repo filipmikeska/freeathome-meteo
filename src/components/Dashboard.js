@@ -1,15 +1,54 @@
 'use client';
 
 import { useState } from 'react';
-import { format } from 'date-fns';
+import dynamic from 'next/dynamic';
 import { RefreshCw, CalendarDays } from 'lucide-react';
 import CurrentWeather from './CurrentWeather';
-import SunTimes from './SunTimes';
-import WeatherChart from './WeatherChart';
 import DateRangePicker from './DateRangePicker';
-import ForecastCard from './ForecastCard';
-import { useCurrentWeather, useWeatherHistory, useForecast } from '@/hooks/useWeatherData';
+import { useCurrentWeather, useWeatherHistory, useForecast, useMoonData } from '@/hooks/useWeatherData';
 import { formatTooltipTime } from '@/lib/utils';
+
+// Dynamic imports — těžké komponenty se načtou až když jsou potřeba
+const WeatherChart = dynamic(() => import('./WeatherChart'), {
+  loading: () => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div className="h-80 flex items-center justify-center">
+        <div className="animate-pulse text-gray-400">Načítám graf...</div>
+      </div>
+    </div>
+  ),
+  ssr: false,
+});
+
+const ForecastCard = dynamic(() => import('./ForecastCard'), {
+  loading: () => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div className="animate-pulse space-y-3">
+        {[...Array(7)].map((_, i) => (
+          <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700 rounded" />
+        ))}
+      </div>
+    </div>
+  ),
+});
+
+const SunTimes = dynamic(() => import('./SunTimes'), {
+  loading: () => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse">
+      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-4" />
+      <div className="h-24 bg-gray-100 dark:bg-gray-700 rounded" />
+    </div>
+  ),
+});
+
+const MoonPhase = dynamic(() => import('./MoonPhase'), {
+  loading: () => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse">
+      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-4" />
+      <div className="h-20 bg-gray-100 dark:bg-gray-700 rounded" />
+    </div>
+  ),
+});
 
 export default function Dashboard() {
   const [range, setRange] = useState('24h');
@@ -18,6 +57,7 @@ export default function Dashboard() {
 
   const { current, isLoading: currentLoading } = useCurrentWeather();
   const { forecast, isLoading: forecastLoading } = useForecast();
+  const { moon, isLoading: moonLoading } = useMoonData();
 
   // Pro custom rozsah použijeme from/to, jinak range
   const historyParams =
@@ -41,11 +81,11 @@ export default function Dashboard() {
       {/* Aktuální data */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Aktuální počasí
           </h2>
           {current?.timestamp && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
               <RefreshCw className="h-3.5 w-3.5" />
               <span>
                 {formatTooltipTime(current.timestamp)}
@@ -55,24 +95,25 @@ export default function Dashboard() {
         </div>
         <CurrentWeather data={current} isLoading={currentLoading} />
 
-        {/* Východ a západ slunce */}
-        {forecast?.daily && (
-          <div className="mt-4">
+        {/* Slunce a Měsíc */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {forecast?.daily && (
             <SunTimes forecast={forecast} brightness={current?.brightness} />
-          </div>
-        )}
+          )}
+          <MoonPhase moon={moon} isLoading={moonLoading} />
+        </div>
       </section>
 
       {/* Předpověď */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-gray-500" />
-            <h2 className="text-lg font-semibold text-gray-900">
+            <CalendarDays className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Předpověď na 7 dní
             </h2>
           </div>
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-gray-400 dark:text-gray-500">
             Zdroj: Open-Meteo (ECMWF)
           </span>
         </div>
@@ -82,7 +123,7 @@ export default function Dashboard() {
       {/* Grafy */}
       <section>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Historie
           </h2>
           <DateRangePicker
@@ -101,11 +142,13 @@ export default function Dashboard() {
       </section>
 
       {/* Informace */}
-      <footer className="text-center text-sm text-gray-400 pb-4">
+      <footer className="text-center text-sm text-gray-400 dark:text-gray-500 pb-4">
         Data z meteostanice ABB free@home WS-1 &middot;
         Předpověď: Open-Meteo.com &middot;
         Aktualizace každých{' '}
         {Math.round((parseInt(process.env.NEXT_PUBLIC_POLL_INTERVAL || '60000') / 1000))} s
+        <br />
+        Kontakt: <a href="mailto:meteopacetluky@gmail.com" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 underline">meteopacetluky@gmail.com</a>
       </footer>
     </div>
   );
