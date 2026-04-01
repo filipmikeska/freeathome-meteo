@@ -3,6 +3,7 @@
 import {
   Sun, Moon, CloudSun, CloudMoon, Cloud, CloudFog,
   CloudDrizzle, CloudRain, Snowflake, CloudLightning,
+  Droplets, Wind,
 } from 'lucide-react';
 import { getWeatherInfo } from '@/lib/weather-codes';
 
@@ -26,6 +27,17 @@ export default function ForecastDetail({ hourly, sunrise, sunset }) {
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2 text-xs text-gray-400">
+        <span><strong className="text-gray-700 dark:text-gray-200">8°</strong> teplota, <span className="text-gray-400">5°</span> pocitová</span>
+        <div className="flex items-center gap-1">
+          <Wind className="h-3 w-3" />
+          <span>= vítr (m/s)</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Droplets className="h-3 w-3" />
+          <span>= srážky (%)</span>
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <div className="flex gap-1 min-w-max">
           {filtered.map((hour) => {
@@ -54,6 +66,10 @@ export default function ForecastDetail({ hourly, sunrise, sunset }) {
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">
                   {Math.round(hour.temperature)}°
                 </span>
+                {/* Pocitová teplota */}
+                <span className="text-xs text-gray-400" title="Pocitová teplota">
+                  {Math.round(hour.feelsLike)}°
+                </span>
 
                 {/* Srážky */}
                 {hour.precipitation > 0 && (
@@ -62,10 +78,25 @@ export default function ForecastDetail({ hourly, sunrise, sunset }) {
                   </span>
                 )}
 
-                {/* Vlhkost */}
-                <span className="text-xs text-gray-400 mt-0.5">
-                  {hour.humidity}%
-                </span>
+                {/* Vítr */}
+                <div className="flex items-center gap-0.5 mt-0.5">
+                  <Wind className="h-3 w-3 text-gray-400" />
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {Math.round(hour.windSpeed / 3.6)}
+                  </span>
+                </div>
+
+                {/* Pravděpodobnost srážek */}
+                <div className="flex items-center gap-0.5 mt-0.5">
+                  <Droplets className="h-3 w-3 text-blue-400" />
+                  <span className={`text-xs ${
+                    hour.precipitationProbability > 50
+                      ? 'text-blue-500 dark:text-blue-400 font-medium'
+                      : 'text-gray-400'
+                  }`}>
+                    {hour.precipitationProbability}%
+                  </span>
+                </div>
               </div>
             );
           })}

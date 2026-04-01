@@ -12,7 +12,7 @@ const LON = 17.5658;
 
 const OPEN_METEO_URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}` +
   `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,winddirection_10m_dominant,sunrise,sunset` +
-  `&hourly=temperature_2m,precipitation,weathercode,windspeed_10m,relativehumidity_2m` +
+  `&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,weathercode,windspeed_10m,relativehumidity_2m` +
   `&timezone=Europe/Prague&forecast_days=7`;
 
 export async function GET() {
@@ -55,7 +55,9 @@ export async function GET() {
       hourlyByDay[day].push({
         time: time.slice(11, 16), // "HH:MM"
         temperature: data.hourly.temperature_2m[i],
+        feelsLike: data.hourly.apparent_temperature[i],
         precipitation: data.hourly.precipitation[i],
+        precipitationProbability: data.hourly.precipitation_probability[i],
         weatherCode: data.hourly.weathercode[i],
         windSpeed: data.hourly.windspeed_10m[i],
         humidity: data.hourly.relativehumidity_2m[i],
