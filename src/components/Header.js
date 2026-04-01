@@ -73,6 +73,9 @@ function InfoPopup({ onClose }) {
               Předpověď na 7 dní pochází ze dvou nezávislých zdrojů &mdash;{' '}
               <strong>Open-Meteo</strong> (model ECMWF) a <strong>Yr.no</strong> (MET Norway).
               Údaje o slunci a měsíci poskytuje U.S. Naval Observatory.
+              Předpovědi se denně ukládají a porovnávají se skutečně naměřenými
+              hodnotami &mdash; výsledkem je průběžné vyhodnocení přesnosti
+              jednotlivých zdrojů.
             </p>
           </section>
 
