@@ -96,8 +96,78 @@ export function formatTooltipTime(timestamp) {
   return format(parseUTC(timestamp), 'd.M.yyyy HH:mm', { locale: cs });
 }
 
-// Zjistí, jestli je den nebo noc (přibližně)
-export function isDaytime() {
-  const hour = new Date().getHours();
-  return hour >= 6 && hour < 21;
+// --- Solární výpočty pro Pacetluky (49.3794°N, 17.5658°E) ---
+
+const LAT = 49.3794;
+const LON = 17.5658;
+const DEG = Math.PI / 180;
+
+// Měsíční špičky jasu při jasné obloze (klx) — zdroj: ČHMÚ, PVGIS
+const PEAK_KLX = [0, 30, 42, 66, 84, 102, 114, 120, 108, 84, 54, 34, 24];
+
+// Výška slunce nad obzorem (stupně)
+function getSolarElevation(date) {
+  const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+  const hourUTC = date.getUTCHours() + date.getUTCMinutes() / 60;
+
+  // Deklinace slunce
+  const declination = -23.45 * Math.cos(DEG * (360 / 365) * (dayOfYear + 10));
+
+  // Hodinový úhel (solar hour angle)
+  const solarNoonUTC = 12 - LON / 15;
+  const hourAngle = (hourUTC - solarNoonUTC) * 15;
+
+  // Výška slunce
+  const sinElev =
+    Math.sin(LAT * DEG) * Math.sin(declination * DEG) +
+    Math.cos(LAT * DEG) * Math.cos(declination * DEG) * Math.cos(hourAngle * DEG);
+
+  return Math.asin(sinElev) / DEG;
+}
+
+// Maximální výška slunce v poledne pro daný den
+function getMaxElevation(date) {
+  const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+  const declination = -23.45 * Math.cos(DEG * (360 / 365) * (dayOfYear + 10));
+  return 90 - LAT + declination;
+}
+
+// Teoretický max jasu pro daný okamžik při jasné obloze (klx)
+function getTheoreticalMax(date) {
+  const elev = getSolarElevation(date);
+  if (elev <= 0) return 0;
+
+  const month = date.getMonth() + 1;
+  const peak = PEAK_KLX[month];
+  const maxElev = getMaxElevation(date);
+
+  if (maxElev <= 0) return 0;
+  return peak * Math.sin(elev * DEG) / Math.sin(maxElev * DEG);
+}
+
+// Zjistí stav oblohy z naměřeného jasu
+export function getSkyCondition(brightnessLux, date = new Date()) {
+  const elev = getSolarElevation(date);
+
+  if (elev <= 0) {
+    return { label: 'Noc', icon: 'night', isDay: false, kt: 0 };
+  }
+
+  const theorMax = getTheoreticalMax(date);
+  if (theorMax <= 0) {
+    return { label: 'Noc', icon: 'night', isDay: false, kt: 0 };
+  }
+
+  const measuredKlx = Number(brightnessLux) / 1000;
+  const kt = Math.min(measuredKlx / theorMax, 1.2);
+
+  if (kt > 0.7) return { label: 'Jasno', icon: 'clear', isDay: true, kt };
+  if (kt > 0.4) return { label: 'Polojasno', icon: 'partlyCloudy', isDay: true, kt };
+  if (kt > 0.15) return { label: 'Oblačno', icon: 'cloudy', isDay: true, kt };
+  return { label: 'Zataženo', icon: 'overcast', isDay: true, kt };
+}
+
+// Zjistí, jestli je den nebo noc
+export function isDaytime(date = new Date()) {
+  return getSolarElevation(date) > 0;
 }

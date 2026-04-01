@@ -8,6 +8,8 @@ import {
   CloudOff,
   Droplets,
   Moon,
+  Cloud,
+  CloudSun,
 } from 'lucide-react';
 import {
   formatTemperature,
@@ -17,7 +19,7 @@ import {
   getTemperatureColor,
   getTemperatureBg,
   getWindDescription,
-  isDaytime,
+  getSkyCondition,
 } from '@/lib/utils';
 
 function WeatherCard({ icon: Icon, label, value, detail, className, iconColor }) {
@@ -60,8 +62,17 @@ export default function CurrentWeather({ data, isLoading }) {
     );
   }
 
-  const isDay = isDaytime();
+  const sky = getSkyCondition(data.brightness);
   const raining = Number(data.rain) === 1;
+
+  const SKY_ICONS = {
+    night: Moon,
+    clear: Sun,
+    partlyCloudy: CloudSun,
+    cloudy: Cloud,
+    overcast: Cloud,
+  };
+  const SkyIcon = SKY_ICONS[sky.icon] || Sun;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -75,12 +86,12 @@ export default function CurrentWeather({ data, isLoading }) {
       />
 
       <WeatherCard
-        icon={isDay ? Sun : Moon}
+        icon={SkyIcon}
         label="Jas"
         value={formatBrightness(data.brightness)}
-        detail={isDay ? 'Den' : 'Noc'}
+        detail={sky.label}
         className="bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800"
-        iconColor="text-yellow-500"
+        iconColor={sky.isDay ? 'text-yellow-500' : 'text-indigo-400'}
       />
 
       <WeatherCard
