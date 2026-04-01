@@ -24,6 +24,10 @@ export async function GET() {
       brightnessAlarm: measurement.brightness_alarm,
       windAlarm: measurement.wind_alarm,
       rainAlarm: measurement.rain_alarm,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     });
   } catch (error) {
     console.error('Error fetching current data:', error);

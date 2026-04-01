@@ -30,6 +30,7 @@ async function execute(sql, args = []) {
 
   const response = await fetch(`${url}/v2/pipeline`, {
     method: 'POST',
+    cache: 'no-store',
     headers: {
       Authorization: `Bearer ${authToken}`,
       'Content-Type': 'application/json',

@@ -42,6 +42,21 @@ export function useWeatherHistory(range = '24h', from = null, to = null) {
   };
 }
 
+// Hook pro data o měsíci (aktualizace každou hodinu)
+export function useMoonData() {
+  const { data, error, isLoading } = useSWR('/api/moon', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 3600000,
+    refreshInterval: 3600000,
+  });
+
+  return {
+    moon: data,
+    isLoading,
+    isError: !!error,
+  };
+}
+
 // Hook pro předpověď počasí (cache 1h na serveru, revalidace každou hodinu na klientu)
 export function useForecast() {
   const { data, error, isLoading } = useSWR('/api/forecast', fetcher, {

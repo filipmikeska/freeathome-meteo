@@ -39,11 +39,11 @@ export function getTemperatureColor(value) {
 // Barva pozadí karty podle teploty
 export function getTemperatureBg(value) {
   const temp = Number(value);
-  if (temp < 0) return 'bg-blue-50 border-blue-200';
-  if (temp < 10) return 'bg-cyan-50 border-cyan-200';
-  if (temp < 25) return 'bg-green-50 border-green-200';
-  if (temp < 35) return 'bg-orange-50 border-orange-200';
-  return 'bg-red-50 border-red-200';
+  if (temp < 0) return 'bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800';
+  if (temp < 10) return 'bg-cyan-50 border-cyan-200 dark:bg-cyan-950 dark:border-cyan-800';
+  if (temp < 25) return 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800';
+  if (temp < 35) return 'bg-orange-50 border-orange-200 dark:bg-orange-950 dark:border-orange-800';
+  return 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800';
 }
 
 // Beaufortova stupnice — popis větru
@@ -77,15 +77,23 @@ export function getTimeRange(range) {
 
 // Formát času pro grafy
 export function formatChartTime(timestamp, range) {
-  const date = new Date(timestamp);
+  const date = parseUTC(timestamp);
   if (range === '24h') return format(date, 'HH:mm', { locale: cs });
   if (range === '7d') return format(date, 'EEE HH:mm', { locale: cs });
   return format(date, 'd.M.', { locale: cs });
 }
 
+// Parse DB timestamp (UTC) correctly
+function parseUTC(timestamp) {
+  if (!timestamp) return new Date();
+  // DB stores "2026-03-31 16:37:02" in UTC — append Z so JS treats it as UTC
+  const iso = timestamp.replace(' ', 'T') + (timestamp.includes('Z') ? '' : 'Z');
+  return new Date(iso);
+}
+
 // Formát timestamp pro tooltip
 export function formatTooltipTime(timestamp) {
-  return format(new Date(timestamp), 'd.M.yyyy HH:mm', { locale: cs });
+  return format(parseUTC(timestamp), 'd.M.yyyy HH:mm', { locale: cs });
 }
 
 // Zjistí, jestli je den nebo noc (přibližně)
