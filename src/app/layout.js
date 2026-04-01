@@ -42,10 +42,19 @@ export const metadata = {
     index: true,
     follow: true,
   },
+  manifest: '/manifest.json',
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },
     ],
+    apple: [
+      { url: '/icons/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Meteo Pacetluky',
   },
   other: {
     'geo.region': 'CZ-ZLK',
