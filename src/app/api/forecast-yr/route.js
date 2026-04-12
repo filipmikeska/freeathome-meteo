@@ -39,7 +39,7 @@ function transformData(timeseries) {
     byDay[day].push(entry);
   }
 
-  const days = Object.keys(byDay).sort().slice(0, 7);
+  const days = Object.keys(byDay).sort().slice(0, 10);
 
   const daily = [];
   const hourlyByDay = {};
@@ -182,7 +182,20 @@ export async function GET() {
     }
 
     const data = await response.json();
-    const result = transformData(data.properties.timeseries);
+    const transformed = transformData(data.properties.timeseries);
+
+    // Filtrovat pouze dnešek a budoucí dny
+    const filteredDaily = transformed.daily.filter((d) => d.date >= today).slice(0, 7);
+    const filteredHourly = {};
+    for (const d of filteredDaily) {
+      if (transformed.hourly[d.date]) filteredHourly[d.date] = transformed.hourly[d.date];
+    }
+
+    const result = {
+      ...transformed,
+      daily: filteredDaily,
+      hourly: filteredHourly,
+    };
 
     cachedForecast = result;
     cacheTimestamp = now;

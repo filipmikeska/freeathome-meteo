@@ -68,11 +68,18 @@ export async function GET() {
       });
     });
 
+    // Filtrovat pouze dnešek a budoucí dny
+    const filteredDaily = daily.filter((d) => d.date >= today);
+    const filteredHourly = {};
+    for (const d of filteredDaily) {
+      if (hourlyByDay[d.date]) filteredHourly[d.date] = hourlyByDay[d.date];
+    }
+
     const result = {
       location: { lat: LAT, lon: LON, name: 'Pacetluky' },
       updatedAt: new Date().toISOString(),
-      daily,
-      hourly: hourlyByDay,
+      daily: filteredDaily,
+      hourly: filteredHourly,
     };
 
     // Uložit do cache
