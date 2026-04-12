@@ -48,21 +48,23 @@ function DayRow({ day, hourly, isExpanded, onToggle }) {
           </div>
         </div>
 
-        {/* Srážky */}
-        {day.precipitation > 0 && (
-          <div className="flex items-center gap-1 mr-4">
-            <Droplets className="h-3.5 w-3.5 text-blue-400" />
-            <span className="text-sm text-blue-500 dark:text-blue-400">
-              {day.precipitation.toFixed(1)} mm
-            </span>
-          </div>
-        )}
+        {/* Srážky — fixní šířka pro zarovnání */}
+        <div className="flex items-center gap-1 mr-3 w-[4.5rem] justify-end">
+          {day.precipitation > 0 ? (
+            <>
+              <Droplets className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+              <span className="text-sm text-blue-500 dark:text-blue-400">
+                {day.precipitation.toFixed(1)}
+              </span>
+            </>
+          ) : null}
+        </div>
 
-        {/* Vítr */}
-        <div className="flex items-center gap-1 mr-4 w-16">
-          <Wind className="h-3.5 w-3.5 text-gray-400" />
+        {/* Vítr — fixní šířka */}
+        <div className="flex items-center gap-1 mr-3 w-[3.5rem] justify-end">
+          <Wind className="h-3.5 w-3.5 text-gray-400 shrink-0" />
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            {Math.round(day.windMax / 3.6)} m/s
+            {Math.round(day.windMax / 3.6)}
           </span>
         </div>
 
