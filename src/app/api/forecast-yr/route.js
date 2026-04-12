@@ -164,7 +164,7 @@ export async function GET() {
     const now = Date.now();
 
     // Vrátit cache pokud je čerstvá a obsahuje dnešní den
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
     const cacheHasToday = cachedForecast?.daily?.some((d) => d.date === today);
     if (cachedForecast && now - cacheTimestamp < CACHE_TTL && cacheHasToday) {
       return NextResponse.json(cachedForecast);

@@ -118,8 +118,8 @@ export default function ForecastCard({ forecast, isLoading }) {
     );
   }
 
-  // Filtrovat pouze dnešek a budoucí dny
-  const today = new Date().toISOString().slice(0, 10);
+  // Filtrovat pouze dnešek a budoucí dny (použít pražský čas)
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
   const futureDays = forecast.daily.filter((day) => day.date >= today);
 
   return (
