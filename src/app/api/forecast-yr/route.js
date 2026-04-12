@@ -163,7 +163,10 @@ export async function GET() {
   try {
     const now = Date.now();
 
-    if (cachedForecast && now - cacheTimestamp < CACHE_TTL) {
+    // Vrátit cache pokud je čerstvá a obsahuje dnešní den
+    const today = new Date().toISOString().slice(0, 10);
+    const cacheHasToday = cachedForecast?.daily?.some((d) => d.date === today);
+    if (cachedForecast && now - cacheTimestamp < CACHE_TTL && cacheHasToday) {
       return NextResponse.json(cachedForecast);
     }
 
