@@ -36,6 +36,7 @@ export async function GET() {
 
     const response = await fetch(OPEN_METEO_URL, {
       headers: { 'Accept': 'application/json' },
+      cache: 'no-store',
     });
 
     if (!response.ok) {
