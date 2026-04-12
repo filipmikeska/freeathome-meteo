@@ -118,9 +118,13 @@ export default function ForecastCard({ forecast, isLoading }) {
     );
   }
 
+  // Filtrovat pouze dnešek a budoucí dny
+  const today = new Date().toISOString().slice(0, 10);
+  const futureDays = forecast.daily.filter((day) => day.date >= today);
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-      {forecast.daily.map((day) => (
+      {futureDays.map((day) => (
         <DayRow
           key={day.date}
           day={day}
