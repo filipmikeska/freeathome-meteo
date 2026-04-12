@@ -80,7 +80,6 @@ export async function GET() {
     cacheTimestamp = now;
 
     // Uložit snapshot předpovědi 1x denně
-    const today = new Date().toISOString().slice(0, 10);
     if (lastSnapshotDate !== today) {
       lastSnapshotDate = today;
       try {
