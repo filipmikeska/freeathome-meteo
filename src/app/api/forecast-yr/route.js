@@ -167,7 +167,13 @@ export async function GET() {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
     const cacheHasToday = cachedForecast?.daily?.some((d) => d.date === today);
     if (cachedForecast && now - cacheTimestamp < CACHE_TTL && cacheHasToday) {
-      return NextResponse.json(cachedForecast);
+      // Filtrovat staré dny i z cache
+      const cachedDaily = cachedForecast.daily.filter((d) => d.date >= today).slice(0, 7);
+      const cachedHourly = {};
+      for (const d of cachedDaily) {
+        if (cachedForecast.hourly?.[d.date]) cachedHourly[d.date] = cachedForecast.hourly[d.date];
+      }
+      return NextResponse.json({ ...cachedForecast, daily: cachedDaily, hourly: cachedHourly });
     }
 
     const response = await fetch(YR_URL, {
