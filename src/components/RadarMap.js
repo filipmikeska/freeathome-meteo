@@ -11,8 +11,8 @@ const ANIMATION_SPEED = 500; // ms mezi snímky
 
 // ČHMÚ radar composite geo-bounds (cropped — without borders/legend)
 const RADAR_BOUNDS = [
-  [48.0618, 11.2793], // SW
-  [51.1614, 18.8989], // NE
+  [48.0470, 11.2670], // SW
+  [51.0724, 18.9112], // NE
 ];
 
 // Legenda — barevná škála srážek (přibližně ČHMÚ stupnice)
