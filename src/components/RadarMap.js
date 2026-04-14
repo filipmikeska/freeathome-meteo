@@ -209,8 +209,36 @@ export default function RadarMap() {
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* Timeline nahoře */}
       {!isLoading && frames.length > 0 && (
-        <div className="px-4 pt-3 pb-1 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="px-3 sm:px-4 pt-2 sm:pt-3 pb-1 border-b border-gray-200 dark:border-gray-700">
+          {/* Mobilní layout: čas nahoře, ovládání dole */}
+          <div className="flex items-center justify-between mb-1 sm:mb-0">
+            <div className="flex items-center gap-1 sm:hidden">
+              <button
+                onClick={handlePlayPause}
+                className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                aria-label={isPlaying ? 'Pauza' : 'Přehrát'}
+              >
+                {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              </button>
+              <button onClick={stepBack} disabled={currentFrame === 0}
+                className="p-1 text-gray-400 disabled:opacity-30"><SkipBack className="h-3 w-3" /></button>
+              <button onClick={stepForward} disabled={currentFrame >= frames.length - 1}
+                className="p-1 text-gray-400 disabled:opacity-30"><SkipForward className="h-3 w-3" /></button>
+            </div>
+            <span className="text-sm font-medium text-gray-900 dark:text-white sm:hidden">
+              {formatTime(frames[currentFrame]?.timestamp)}
+            </span>
+          </div>
+
+          {/* Slider — plná šířka na mobilu */}
+          <div className="sm:hidden mb-1">
+            <input type="range" min={0} max={frames.length - 1} value={currentFrame}
+              onChange={(e) => { setIsPlaying(false); setCurrentFrame(Number(e.target.value)); }}
+              className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+          </div>
+
+          {/* Desktop layout: vše v jednom řádku */}
+          <div className="hidden sm:flex items-center gap-2 mb-2">
             <button
               onClick={handlePlayPause}
               className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex-shrink-0"
@@ -218,40 +246,19 @@ export default function RadarMap() {
             >
               {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </button>
-
-            <button
-              onClick={stepBack}
-              disabled={currentFrame === 0}
+            <button onClick={stepBack} disabled={currentFrame === 0}
               className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 transition-colors flex-shrink-0"
-              aria-label="Předchozí"
-            >
-              <SkipBack className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={stepForward}
-              disabled={currentFrame >= frames.length - 1}
+              aria-label="Předchozí"><SkipBack className="h-3.5 w-3.5" /></button>
+            <button onClick={stepForward} disabled={currentFrame >= frames.length - 1}
               className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 transition-colors flex-shrink-0"
-              aria-label="Další"
-            >
-              <SkipForward className="h-3.5 w-3.5" />
-            </button>
+              aria-label="Další"><SkipForward className="h-3.5 w-3.5" /></button>
 
-            {/* Timeline slider s časy */}
             <div className="flex-1 relative">
-              <input
-                type="range"
-                min={0}
-                max={frames.length - 1}
-                value={currentFrame}
-                onChange={(e) => {
-                  setIsPlaying(false);
-                  setCurrentFrame(Number(e.target.value));
-                }}
-                className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              {/* Časové značky pod sliderem */}
+              <input type="range" min={0} max={frames.length - 1} value={currentFrame}
+                onChange={(e) => { setIsPlaying(false); setCurrentFrame(Number(e.target.value)); }}
+                className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600" />
               <div className="flex justify-between mt-0.5 px-0.5">
-                {timelineTicks.map((f, i) => (
+                {timelineTicks.map((f) => (
                   <span key={f.timestamp} className="text-[10px] text-gray-400 dark:text-gray-500">
                     {formatTimeShort(f.timestamp)}
                   </span>
@@ -259,7 +266,6 @@ export default function RadarMap() {
               </div>
             </div>
 
-            {/* Aktuální čas */}
             <span className="text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap flex-shrink-0 min-w-[100px] text-right">
               {formatTime(frames[currentFrame]?.timestamp)}
             </span>
@@ -268,45 +274,47 @@ export default function RadarMap() {
       )}
 
       {/* Mapa */}
-      <div ref={mapRef} className="w-full" style={{ height: '500px' }} />
+      <div ref={mapRef} className="w-full h-[350px] sm:h-[500px]" />
 
       {/* Legenda + průhlednost */}
       {!isLoading && frames.length > 0 && (
-        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between gap-4 flex-wrap">
-          {/* Legenda srážek */}
-          <div className="flex items-center gap-0.5">
-            <span className="text-[10px] text-gray-400 mr-1">mm/h</span>
-            {LEGEND_ITEMS.map((item) => (
-              <div key={item.label} className="flex flex-col items-center">
-                <div
-                  className="w-4 h-3 sm:w-5 sm:h-4"
-                  style={{ backgroundColor: item.color }}
-                />
-                <span className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">
-                  {item.label}
-                </span>
-              </div>
-            ))}
-          </div>
+        <div className="px-3 sm:px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between gap-2">
+            {/* Legenda srážek — skrýt popisky na mobilu */}
+            <div className="flex items-center gap-px sm:gap-0.5 overflow-hidden">
+              <span className="text-[9px] sm:text-[10px] text-gray-400 mr-1 hidden sm:inline">mm/h</span>
+              {LEGEND_ITEMS.map((item) => (
+                <div key={item.label} className="flex flex-col items-center">
+                  <div
+                    className="w-3 h-2.5 sm:w-5 sm:h-4"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-[7px] sm:text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 hidden sm:block">
+                    {item.label}
+                  </span>
+                </div>
+              ))}
+            </div>
 
-          {/* Průhlednost */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">Průhlednost</span>
-            <input
-              type="range"
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={opacity}
-              onChange={(e) => setOpacity(Number(e.target.value))}
-              className="w-20 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
+            {/* Průhlednost */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-[10px] sm:text-xs text-gray-400 hidden sm:inline">Průhlednost</span>
+              <input
+                type="range"
+                min={0.2}
+                max={1}
+                step={0.05}
+                value={opacity}
+                onChange={(e) => setOpacity(Number(e.target.value))}
+                className="w-14 sm:w-20 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+            </div>
           </div>
         </div>
       )}
 
       {isLoading && (
-        <div className="px-4 py-6 text-center" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="px-4 py-6 text-center h-[350px] sm:h-[500px] flex items-center justify-center">
           <div className="animate-pulse text-gray-400">Načítám radarová data z ČHMÚ...</div>
         </div>
       )}
