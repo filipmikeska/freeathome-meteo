@@ -10,9 +10,11 @@ const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minut
 const ANIMATION_SPEED = 500; // ms mezi snímky
 
 // ČHMÚ radar composite geo-bounds (cropped — without borders/legend)
+// Full image bounds from in-pocasi.cz: [48.047, 11.267] → [51.4668, 19.638]
+// Recalculated for crop {left:0, top:52, w:622, h:408} via Mercator projection
 const RADAR_BOUNDS = [
   [48.0470, 11.2670], // SW
-  [51.0724, 18.9112], // NE
+  [51.0923, 18.9240], // NE
 ];
 
 // Legenda — barevná škála srážek (přibližně ČHMÚ stupnice)
