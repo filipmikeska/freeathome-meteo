@@ -5,10 +5,32 @@ import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import L from 'leaflet';
 
 const PACETLUKY = [49.3794, 17.5658];
-const DEFAULT_ZOOM = 7;
-const RAINVIEWER_API = 'https://api.rainviewer.com/public/weather-maps.json';
+const DEFAULT_ZOOM = 8;
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minut
-const ANIMATION_SPEED = 800; // ms mezi snímky
+const ANIMATION_SPEED = 500; // ms mezi snímky
+
+// ČHMÚ radar composite geo-bounds (Web Mercator)
+const RADAR_BOUNDS = [
+  [48.047, 11.267], // SW
+  [51.458, 19.624], // NE
+];
+
+// Legenda — barevná škála srážek (přibližně ČHMÚ stupnice)
+const LEGEND_ITEMS = [
+  { color: '#9bf', label: '0.1' },
+  { color: '#5af', label: '1' },
+  { color: '#19f', label: '2' },
+  { color: '#3f3', label: '4' },
+  { color: '#2d2', label: '8' },
+  { color: '#ff0', label: '12' },
+  { color: '#fc0', label: '16' },
+  { color: '#fa0', label: '24' },
+  { color: '#f60', label: '32' },
+  { color: '#f00', label: '40' },
+  { color: '#d00', label: '48' },
+  { color: '#a00', label: '55' },
+  { color: '#f0f', label: '60' },
+];
 
 export default function RadarMap() {
   const mapRef = useRef(null);
@@ -17,30 +39,28 @@ export default function RadarMap() {
   const markerRef = useRef(null);
 
   const [frames, setFrames] = useState([]);
-  const [host, setHost] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [opacity, setOpacity] = useState(0.7);
 
   const intervalRef = useRef(null);
 
-  // Fetch radar data
+  // Fetch radar data from our API
   const fetchRadarData = useCallback(async () => {
     try {
-      const res = await fetch(RAINVIEWER_API);
+      const res = await fetch('/api/radar?hours=3');
       const data = await res.json();
-      setHost(data.host);
-      const allFrames = [
-        ...data.radar.past.map((f) => ({ ...f, type: 'past' })),
-        ...data.radar.nowcast.map((f) => ({ ...f, type: 'nowcast' })),
-      ];
-      setFrames(allFrames);
-      setCurrentFrame(data.radar.past.length - 1); // poslední aktuální snímek
+      if (data.error) throw new Error(data.error);
+      setBaseUrl(data.base);
+      setFrames(data.frames);
+      setCurrentFrame(data.frames.length - 1);
       setIsLoading(false);
       setError(null);
-    } catch {
-      setError('Nepodařilo se načíst radarová data');
+    } catch (err) {
+      setError('Nepodařilo se načíst radarová data z ČHMÚ');
       setIsLoading(false);
     }
   }, []);
@@ -49,7 +69,6 @@ export default function RadarMap() {
   useEffect(() => {
     if (mapInstance.current) return;
 
-    // Fix Leaflet default icon paths (webpack issue)
     delete L.Icon.Default.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
       iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -60,18 +79,26 @@ export default function RadarMap() {
     const map = L.map(mapRef.current, {
       center: PACETLUKY,
       zoom: DEFAULT_ZOOM,
-      maxZoom: 7,
-      minZoom: 5,
+      maxZoom: 13,
+      minZoom: 6,
       zoomControl: true,
       attributionControl: true,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 7,
+    // OpenStreetMap Wikimedia tiles
+    L.tileLayer('https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &middot; <a href="https://foundation.wikimedia.org/wiki/Maps_Terms_of_Use">Wikimedia</a>',
+      maxZoom: 18,
     }).addTo(map);
 
-    markerRef.current = L.marker(PACETLUKY)
+    // Marker
+    const icon = L.divIcon({
+      className: '',
+      html: '<div style="width:12px;height:12px;background:#2563eb;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+      iconSize: [12, 12],
+      iconAnchor: [6, 6],
+    });
+    markerRef.current = L.marker(PACETLUKY, { icon })
       .addTo(map)
       .bindPopup('Meteostanice Pacetluky');
 
@@ -89,23 +116,31 @@ export default function RadarMap() {
 
   // Update radar overlay when frame changes
   useEffect(() => {
-    if (!mapInstance.current || !host || frames.length === 0) return;
+    if (!mapInstance.current || !baseUrl || frames.length === 0) return;
 
     const frame = frames[currentFrame];
     if (!frame) return;
 
-    if (radarLayerRef.current) {
-      mapInstance.current.removeLayer(radarLayerRef.current);
-    }
+    const imageUrl = `${baseUrl}${frame.filename}`;
+    const bounds = L.latLngBounds(RADAR_BOUNDS[0], RADAR_BOUNDS[1]);
 
-    radarLayerRef.current = L.tileLayer(
-      `${host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`,
-      {
-        opacity: 0.65,
+    if (radarLayerRef.current) {
+      radarLayerRef.current.setUrl(imageUrl);
+    } else {
+      radarLayerRef.current = L.imageOverlay(imageUrl, bounds, {
+        opacity,
         zIndex: 10,
-      }
-    ).addTo(mapInstance.current);
-  }, [currentFrame, frames, host]);
+        interactive: false,
+      }).addTo(mapInstance.current);
+    }
+  }, [currentFrame, frames, baseUrl, opacity]);
+
+  // Update opacity
+  useEffect(() => {
+    if (radarLayerRef.current) {
+      radarLayerRef.current.setOpacity(opacity);
+    }
+  }, [opacity]);
 
   // Animation
   useEffect(() => {
@@ -121,7 +156,6 @@ export default function RadarMap() {
         });
       }, ANIMATION_SPEED);
     }
-
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -135,6 +169,11 @@ export default function RadarMap() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const formatTimeShort = (timestamp) => {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' });
   };
 
   const handlePlayPause = () => {
@@ -162,76 +201,112 @@ export default function RadarMap() {
     );
   }
 
+  // Vyber pár časů pro timeline (každých 30 minut)
+  const timelineTicks = frames.filter((_, i) => i % 6 === 0 || i === frames.length - 1);
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-      {/* Mapa */}
-      <div
-        ref={mapRef}
-        className="w-full"
-        style={{ height: '450px' }}
-      />
-
-      {/* Ovládání */}
+      {/* Timeline nahoře */}
       {!isLoading && frames.length > 0 && (
-        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-          {/* Čas */}
-          <div className="text-center mb-2">
-            <span className="text-sm font-medium text-gray-900 dark:text-white">
-              {formatTime(frames[currentFrame]?.time)}
-            </span>
-            {frames[currentFrame]?.type === 'nowcast' && (
-              <span className="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded-full">
-                předpověď
-              </span>
-            )}
-          </div>
-
-          {/* Tlačítka + slider */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={stepBack}
-              disabled={currentFrame === 0}
-              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"
-              aria-label="Předchozí snímek"
-            >
-              <SkipBack className="h-4 w-4" />
-            </button>
-
+        <div className="px-4 pt-3 pb-1 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2 mb-2">
             <button
               onClick={handlePlayPause}
-              className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex-shrink-0"
               aria-label={isPlaying ? 'Pauza' : 'Přehrát'}
             >
               {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </button>
 
             <button
+              onClick={stepBack}
+              disabled={currentFrame === 0}
+              className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 transition-colors flex-shrink-0"
+              aria-label="Předchozí"
+            >
+              <SkipBack className="h-3.5 w-3.5" />
+            </button>
+            <button
               onClick={stepForward}
               disabled={currentFrame >= frames.length - 1}
-              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"
-              aria-label="Další snímek"
+              className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 transition-colors flex-shrink-0"
+              aria-label="Další"
             >
-              <SkipForward className="h-4 w-4" />
+              <SkipForward className="h-3.5 w-3.5" />
             </button>
 
+            {/* Timeline slider s časy */}
+            <div className="flex-1 relative">
+              <input
+                type="range"
+                min={0}
+                max={frames.length - 1}
+                value={currentFrame}
+                onChange={(e) => {
+                  setIsPlaying(false);
+                  setCurrentFrame(Number(e.target.value));
+                }}
+                className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              {/* Časové značky pod sliderem */}
+              <div className="flex justify-between mt-0.5 px-0.5">
+                {timelineTicks.map((f, i) => (
+                  <span key={f.timestamp} className="text-[10px] text-gray-400 dark:text-gray-500">
+                    {formatTimeShort(f.timestamp)}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Aktuální čas */}
+            <span className="text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap flex-shrink-0 min-w-[100px] text-right">
+              {formatTime(frames[currentFrame]?.timestamp)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Mapa */}
+      <div ref={mapRef} className="w-full" style={{ height: '500px' }} />
+
+      {/* Legenda + průhlednost */}
+      {!isLoading && frames.length > 0 && (
+        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between gap-4 flex-wrap">
+          {/* Legenda srážek */}
+          <div className="flex items-center gap-0.5">
+            <span className="text-[10px] text-gray-400 mr-1">mm/h</span>
+            {LEGEND_ITEMS.map((item) => (
+              <div key={item.label} className="flex flex-col items-center">
+                <div
+                  className="w-4 h-3 sm:w-5 sm:h-4"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Průhlednost */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">Průhlednost</span>
             <input
               type="range"
-              min={0}
-              max={frames.length - 1}
-              value={currentFrame}
-              onChange={(e) => {
-                setIsPlaying(false);
-                setCurrentFrame(Number(e.target.value));
-              }}
-              className="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              min={0.2}
+              max={1}
+              step={0.05}
+              value={opacity}
+              onChange={(e) => setOpacity(Number(e.target.value))}
+              className="w-20 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
           </div>
         </div>
       )}
 
       {isLoading && (
-        <div className="px-4 py-6 text-center">
-          <div className="animate-pulse text-gray-400">Načítám radarová data...</div>
+        <div className="px-4 py-6 text-center" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="animate-pulse text-gray-400">Načítám radarová data z ČHMÚ...</div>
         </div>
       )}
     </div>

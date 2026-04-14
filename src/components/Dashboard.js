@@ -228,7 +228,7 @@ export default function Dashboard() {
               </h2>
             </div>
             <span className="text-sm text-gray-400 dark:text-gray-500">
-              Zdroj: RainViewer
+              Zdroj: ČHMÚ
             </span>
           </div>
           <RadarMap />

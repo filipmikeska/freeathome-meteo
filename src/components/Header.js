@@ -20,7 +20,7 @@ function InfoPopup({ onClose }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
       <div
         ref={ref}
         className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full max-h-[85vh] overflow-y-auto animate-slide-up"
@@ -76,6 +76,17 @@ function InfoPopup({ onClose }) {
               Předpovědi se denně ukládají a porovnávají se skutečně naměřenými
               hodnotami &mdash; výsledkem je průběžné vyhodnocení přesnosti
               jednotlivých zdrojů.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Meteoradar</h3>
+            <p>
+              Radarová data pocházejí z <strong>Českého hydrometeorologického ústavu</strong> (ČHMÚ).
+              Zobrazuje se kompozitní snímek srážek ze dvou radarů (Brdy-Praha a Skalky)
+              s rozlišením 1×1 km. Snímky se aktualizují každých <strong>5 minut</strong> a
+              jsou k dispozici posledních 3 hodiny historie s možností animace.
+              Mapový podklad poskytuje OpenStreetMap (Wikimedia).
             </p>
           </section>
 
