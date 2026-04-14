@@ -9,10 +9,10 @@ const DEFAULT_ZOOM = 8;
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minut
 const ANIMATION_SPEED = 500; // ms mezi snímky
 
-// ČHMÚ radar composite geo-bounds (Web Mercator)
+// ČHMÚ radar composite geo-bounds (cropped — without borders/legend)
 const RADAR_BOUNDS = [
-  [48.047, 11.267], // SW
-  [51.458, 19.624], // NE
+  [48.0618, 11.2793], // SW
+  [51.1614, 18.8989], // NE
 ];
 
 // Legenda — barevná škála srážek (přibližně ČHMÚ stupnice)
@@ -121,7 +121,7 @@ export default function RadarMap() {
     const frame = frames[currentFrame];
     if (!frame) return;
 
-    const imageUrl = `${baseUrl}${frame.filename}`;
+    const imageUrl = `/api/radar/image?f=${frame.filename}`;
     const bounds = L.latLngBounds(RADAR_BOUNDS[0], RADAR_BOUNDS[1]);
 
     if (radarLayerRef.current) {
