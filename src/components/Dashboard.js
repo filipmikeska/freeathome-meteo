@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { RefreshCw, CalendarDays, CloudSun, BarChart3 } from 'lucide-react';
+import { RefreshCw, CalendarDays, CloudSun, BarChart3, Radar } from 'lucide-react';
 import CurrentWeather from './CurrentWeather';
 import DateRangePicker from './DateRangePicker';
 import InstallLink from './InstallLink';
@@ -51,6 +51,17 @@ const ForecastAccuracy = dynamic(() => import('./ForecastAccuracy'), {
   ),
 });
 
+const RadarMap = dynamic(() => import('./RadarMap'), {
+  loading: () => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div className="h-80 flex items-center justify-center">
+        <div className="animate-pulse text-gray-400">Načítám radar...</div>
+      </div>
+    </div>
+  ),
+  ssr: false,
+});
+
 const MoonPhase = dynamic(() => import('./MoonPhase'), {
   loading: () => (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse">
@@ -63,6 +74,7 @@ const MoonPhase = dynamic(() => import('./MoonPhase'), {
 const TABS = [
   { id: 'weather', label: 'Počasí', icon: CloudSun },
   { id: 'forecast', label: 'Předpověď', icon: CalendarDays },
+  { id: 'radar', label: 'Radar', icon: Radar },
 ];
 
 export default function Dashboard() {
@@ -203,6 +215,24 @@ export default function Dashboard() {
             <ForecastAccuracy />
           </section>
         </>
+      )}
+
+      {/* ===== Karta: Radar ===== */}
+      {tab === 'radar' && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Radar className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Meteoradar
+              </h2>
+            </div>
+            <span className="text-sm text-gray-400 dark:text-gray-500">
+              Zdroj: RainViewer
+            </span>
+          </div>
+          <RadarMap />
+        </section>
       )}
 
       {/* Footer */}
