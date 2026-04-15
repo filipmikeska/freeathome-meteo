@@ -53,7 +53,8 @@ export async function GET(request) {
     return new NextResponse(png, {
       headers: {
         'Content-Type': 'image/png',
-        'Cache-Control': 'public, max-age=300, s-maxage=300',
+        'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400',
+        'CDN-Cache-Control': 'public, max-age=86400',
       },
     });
   } catch (err) {

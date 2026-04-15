@@ -60,6 +60,13 @@ export default function RadarMap() {
       setCurrentFrame(data.frames.length - 1);
       setIsLoading(false);
       setError(null);
+
+      // Preload last few frames in background
+      const preloadCount = Math.min(6, data.frames.length);
+      for (let i = data.frames.length - preloadCount; i < data.frames.length; i++) {
+        const img = new Image();
+        img.src = `/api/radar/image?f=${data.frames[i].filename}`;
+      }
     } catch (err) {
       setError('Nepodařilo se načíst radarová data z ČHMÚ');
       setIsLoading(false);
