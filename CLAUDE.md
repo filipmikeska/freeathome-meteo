@@ -4,11 +4,13 @@
 
 - Meteostanice **ABB free@home WS-1** na rodinném domě v Pacetlukách u Kroměříže
 - Sběr dat provádí **Raspberry Pi Zero 2W** každých **60 sekund**
-- RPi komunikuje přímo s ABB SysAP přes lokální síť (HTTPS, Basic Auth)
-- Skript: `rpi/collect.mjs`
+- RPi komunikuje přímo s ABB SysAP (IP **`192.168.68.56`**) přes lokální síť (HTTPS, Basic Auth)
+- SysAP používá **self-signed certifikát** → skript musí běžet s `NODE_TLS_REJECT_UNAUTHORIZED=0`
+- Skript: `rpi/collect.mjs`, cron běží jako `raspi@raspberrypi` každou minutu
 - Data se ukládají do databáze **Turso** (SQLite v cloudu) přes HTTP Pipeline API
 - Záložní sběr: GitHub Actions každých 10 minut přes ABB Cloud API (`scripts/collect-data.mjs`)
 - Měřené veličiny: teplota, rychlost větru, jas (lux), detekce srážek
+- **Runbook pro nasazení / obnovu RPi**: viz `docs/rpi-setup-runbook.md`
 
 ## Nasazení na produkci
 
