@@ -40,21 +40,37 @@ const METRICS = [
   },
 ];
 
+// Mapování klíčů metrik na názvy min/max sloupců v agregacích
+// Pokud agregace nemá dedikovaný min/max sloupec, padá se na raw hodnotu.
+const EXTREME_FIELDS = {
+  temperature: { min: 'tempMin', max: 'tempMax' },
+  brightness: { max: 'brightnessMax' },
+  windSpeed: { max: 'windMax' },
+};
+
 // Najde záznamy s minimální a maximální hodnotou dané metriky v datech
 function findExtremes(data, key) {
+  const fields = EXTREME_FIELDS[key] || {};
   let minRec = null;
   let maxRec = null;
-  for (const d of data) {
-    // Pro agregované denní/hodinové záznamy použij _min / _max sloupce
-    const minVal = d[`${key}Min`] ?? d[`${key}_min`] ?? d[key];
-    const maxVal = d[`${key}Max`] ?? d[`${key}_max`] ?? d[key];
-    if (minVal == null || maxVal == null) continue;
 
-    if (minRec == null || Number(minVal) < Number(minRec.value)) {
-      minRec = { value: Number(minVal), timestamp: d.timestamp };
+  for (const d of data) {
+    const raw = d[key];
+    // Pro min/max použij agregovaný sloupec, pokud existuje; jinak raw hodnotu
+    const minVal = (fields.min && d[fields.min] != null) ? d[fields.min] : raw;
+    const maxVal = (fields.max && d[fields.max] != null) ? d[fields.max] : raw;
+
+    if (minVal != null) {
+      const n = Number(minVal);
+      if (minRec == null || n < minRec.value) {
+        minRec = { value: n, timestamp: d.timestamp };
+      }
     }
-    if (maxRec == null || Number(maxVal) > Number(maxRec.value)) {
-      maxRec = { value: Number(maxVal), timestamp: d.timestamp };
+    if (maxVal != null) {
+      const n = Number(maxVal);
+      if (maxRec == null || n > maxRec.value) {
+        maxRec = { value: n, timestamp: d.timestamp };
+      }
     }
   }
   return { min: minRec, max: maxRec };
@@ -111,11 +127,20 @@ export default function WeatherChart({ data, range, isLoading }) {
     );
   }
 
-  // Připravíme data pro graf
-  const chartData = data.map((item) => ({
-    ...item,
-    timestamp: item.timestamp,
-  }));
+  // Zjistíme, zda jsou data agregovaná (obsahují tempMax) — u 7d a 30d
+  const isAggregated = data.some((d) => d.tempMax != null);
+
+  // Pro agregace zobrazujeme MAX hodnoty (ne průměr), aby graf odpovídal
+  // reálným extrémům. U raw 24h dat zůstávají jednotlivá měření.
+  const chartData = data.map((item) => {
+    if (!isAggregated) return { ...item };
+    return {
+      ...item,
+      temperature: item.tempMax ?? item.temperature,
+      brightness: item.brightnessMax ?? item.brightness,
+      windSpeed: item.windMax ?? item.windSpeed,
+    };
+  });
 
   // Pokud je aktivní jen 1 metrika, zobrazíme area chart
   const showArea = activeMetrics.length === 1;
