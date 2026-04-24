@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { RefreshCw, CalendarDays, CloudSun, BarChart3, Radar } from 'lucide-react';
 import CurrentWeather from './CurrentWeather';
@@ -77,8 +78,39 @@ const TABS = [
   { id: 'radar', label: 'Radar', icon: Radar },
 ];
 
+const VALID_TABS = ['weather', 'forecast', 'radar'];
+
 export default function Dashboard() {
-  const [tab, setTab] = useState('weather');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Tab je synchronizovaný s URL parametrem ?tab=…
+  // Bez parametru → výchozí "weather" (hlavní stránka)
+  const urlTab = searchParams.get('tab');
+  const initialTab = urlTab && VALID_TABS.includes(urlTab) ? urlTab : 'weather';
+  const [tab, setTabState] = useState(initialTab);
+
+  // Synchronizace: když se změní URL (např. kliknutí na logo → Link href="/"), aktualizuj tab
+  useEffect(() => {
+    const current = searchParams.get('tab');
+    const next = current && VALID_TABS.includes(current) ? current : 'weather';
+    setTabState(next);
+  }, [searchParams]);
+
+  // Kliknutí na záložku zapíše výběr do URL (sdílitelné odkazy, funkce Zpět)
+  const setTab = (newTab) => {
+    setTabState(newTab);
+    const params = new URLSearchParams(searchParams);
+    if (newTab === 'weather') {
+      params.delete('tab');
+    } else {
+      params.set('tab', newTab);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
   const [range, setRange] = useState('24h');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');

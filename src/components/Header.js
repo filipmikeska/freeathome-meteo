@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { CloudRain, Info, X } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
@@ -125,7 +126,11 @@ export default function Header() {
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              aria-label="Hlavní stránka"
+              className="flex items-center gap-3 rounded-lg hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+            >
               <CloudRain className="h-8 w-8 text-blue-600 dark:text-blue-400" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -135,7 +140,7 @@ export default function Header() {
                   ABB free@home &middot; Pacetluky
                 </p>
               </div>
-            </div>
+            </Link>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-400 dark:text-gray-500 hidden sm:inline mr-1">
                 49.3794°N, 17.5658°E
