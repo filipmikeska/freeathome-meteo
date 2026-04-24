@@ -13,6 +13,7 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import { formatChartTime, formatTooltipTime } from '@/lib/utils';
 
 const METRICS = [
@@ -38,6 +39,26 @@ const METRICS = [
     domain: [0, 'auto'],
   },
 ];
+
+// Najde záznamy s minimální a maximální hodnotou dané metriky v datech
+function findExtremes(data, key) {
+  let minRec = null;
+  let maxRec = null;
+  for (const d of data) {
+    // Pro agregované denní/hodinové záznamy použij _min / _max sloupce
+    const minVal = d[`${key}Min`] ?? d[`${key}_min`] ?? d[key];
+    const maxVal = d[`${key}Max`] ?? d[`${key}_max`] ?? d[key];
+    if (minVal == null || maxVal == null) continue;
+
+    if (minRec == null || Number(minVal) < Number(minRec.value)) {
+      minRec = { value: Number(minVal), timestamp: d.timestamp };
+    }
+    if (maxRec == null || Number(maxVal) > Number(maxRec.value)) {
+      maxRec = { value: Number(maxVal), timestamp: d.timestamp };
+    }
+  }
+  return { min: minRec, max: maxRec };
+}
 
 function CustomTooltip({ active, payload, label, range }) {
   if (!active || !payload?.length) return null;
@@ -181,6 +202,36 @@ export default function WeatherChart({ data, range, isLoading }) {
           })}
         </ChartComponent>
       </ResponsiveContainer>
+
+      {/* Min/Max pro každou aktivní metriku */}
+      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {activeMetrics.map((key) => {
+          const metric = METRICS.find((m) => m.key === key);
+          const { min, max } = findExtremes(data, key);
+          if (!min || !max) return null;
+          return (
+            <div key={key} className="flex flex-col gap-1">
+              <div className="text-xs font-medium" style={{ color: metric.color }}>
+                {metric.label}
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
+                  <ArrowUp className="h-3.5 w-3.5 text-red-500" />
+                  <span className="font-semibold">{max.value.toFixed(1)}{metric.unit}</span>
+                  <span className="text-xs text-gray-400">· {formatTooltipTime(max.timestamp)}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
+                  <ArrowDown className="h-3.5 w-3.5 text-blue-500" />
+                  <span className="font-semibold">{min.value.toFixed(1)}{metric.unit}</span>
+                  <span className="text-xs text-gray-400">· {formatTooltipTime(min.timestamp)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Rain bar (if data has rain) */}
       {data.some((d) => d.rain != null) && (

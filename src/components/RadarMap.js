@@ -112,10 +112,24 @@ export default function RadarMap() {
 
     mapInstance.current = map;
 
+    // Force map size recalculation — fixes missing tiles/overlay on first mount
+    // when the container was hidden or sized after map init
+    const invalidateTimers = [50, 200, 500].map((delay) =>
+      setTimeout(() => map.invalidateSize(), delay)
+    );
+
+    // Also observe container resize (tab switching, window resize)
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    if (mapRef.current) resizeObserver.observe(mapRef.current);
+
     fetchRadarData();
     const refreshTimer = setInterval(fetchRadarData, REFRESH_INTERVAL);
 
     return () => {
+      invalidateTimers.forEach(clearTimeout);
+      resizeObserver.disconnect();
       clearInterval(refreshTimer);
       map.remove();
       mapInstance.current = null;

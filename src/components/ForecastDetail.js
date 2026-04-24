@@ -33,9 +33,9 @@ export default function ForecastDetail({ hourly, sunrise, sunset }) {
     <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 border-t border-gray-100 dark:border-gray-700">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2 text-xs text-gray-400">
         {hasFeelsLike ? (
-          <span><strong className="text-gray-700 dark:text-gray-200">8°</strong> teplota, <span className="text-gray-400">5°</span> pocitová</span>
+          <span><strong className="text-gray-700 dark:text-gray-200">teplota</strong>, <span className="font-light">pocitová</span></span>
         ) : (
-          <span><strong className="text-gray-700 dark:text-gray-200">8°</strong> teplota</span>
+          <span><strong className="text-gray-700 dark:text-gray-200">teplota</strong></span>
         )}
         <div className="flex items-center gap-1">
           <Wind className="h-3 w-3" />
