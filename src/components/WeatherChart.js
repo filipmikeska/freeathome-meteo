@@ -84,12 +84,27 @@ function CustomTooltip({ active, payload, label, range }) {
       <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
         {formatTooltipTime(label)}
       </p>
-      {payload.map((entry) => (
-        <p key={entry.dataKey} className="text-sm" style={{ color: entry.color }}>
-          {entry.name}: <span className="font-semibold">{Number(entry.value).toFixed(1)}</span>
-          {METRICS.find((m) => m.key === entry.dataKey)?.unit || ''}
-        </p>
-      ))}
+      {payload.map((entry) => {
+        // Range (tempRange) je pole [min, max] — zobrazíme dohromady
+        if (entry.dataKey === 'tempRange') {
+          if (!Array.isArray(entry.value)) return null;
+          return (
+            <p key={entry.dataKey} className="text-sm text-red-400">
+              Rozsah: <span className="font-semibold">
+                {Number(entry.value[0]).toFixed(1)} – {Number(entry.value[1]).toFixed(1)}
+              </span>°C
+            </p>
+          );
+        }
+        // Pro temperatureMin použij jednotku teploty
+        const unitKey = entry.dataKey === 'temperatureMin' ? 'temperature' : entry.dataKey;
+        return (
+          <p key={entry.dataKey} className="text-sm" style={{ color: entry.color }}>
+            {entry.name}: <span className="font-semibold">{Number(entry.value).toFixed(1)}</span>
+            {METRICS.find((m) => m.key === unitKey)?.unit || ''}
+          </p>
+        );
+      })}
     </div>
   );
 }
@@ -132,15 +147,23 @@ export default function WeatherChart({ data, range, isLoading }) {
 
   // Pro agregace zobrazujeme MAX hodnoty (ne průměr), aby graf odpovídal
   // reálným extrémům. U raw 24h dat zůstávají jednotlivá měření.
+  // U teploty navíc připravujeme `tempRange = [min, max]` pro pásmo pod křivkou.
   const chartData = data.map((item) => {
     if (!isAggregated) return { ...item };
     return {
       ...item,
       temperature: item.tempMax ?? item.temperature,
+      temperatureMin: item.tempMin ?? item.temperature,
+      tempRange:
+        item.tempMin != null && item.tempMax != null
+          ? [Number(item.tempMin), Number(item.tempMax)]
+          : undefined,
       brightness: item.brightnessMax ?? item.brightness,
       windSpeed: item.windMax ?? item.windSpeed,
     };
   });
+
+  const showTempRange = isAggregated && activeMetrics.includes('temperature');
 
   // Pokud je aktivní jen 1 metrika, zobrazíme area chart
   const showArea = activeMetrics.length === 1;
@@ -194,9 +217,25 @@ export default function WeatherChart({ data, range, isLoading }) {
             );
           })}
           <Tooltip content={<CustomTooltip range={range} />} />
+
+          {/* Pásmo min–max u teploty v agregovaných datech */}
+          {showTempRange && (
+            <Area
+              type="monotone"
+              dataKey="tempRange"
+              yAxisId="temperature"
+              stroke="none"
+              fill="#ef4444"
+              fillOpacity={0.12}
+              name="Rozsah teplot"
+              activeDot={false}
+              isAnimationActive={false}
+            />
+          )}
+
           {activeMetrics.map((key) => {
             const metric = METRICS.find((m) => m.key === key);
-            if (showArea) {
+            if (showArea && !(showTempRange && key === 'temperature')) {
               return (
                 <Area
                   key={key}
@@ -220,11 +259,25 @@ export default function WeatherChart({ data, range, isLoading }) {
                 yAxisId={key}
                 stroke={metric.color}
                 strokeWidth={2}
-                name={metric.label}
+                name={key === 'temperature' && showTempRange ? 'Max teplota' : metric.label}
                 dot={false}
               />
             );
           })}
+
+          {/* Linka minimální teploty u agregací */}
+          {showTempRange && (
+            <Line
+              type="monotone"
+              dataKey="temperatureMin"
+              yAxisId="temperature"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              strokeDasharray="4 2"
+              name="Min teplota"
+              dot={false}
+            />
+          )}
         </ChartComponent>
       </ResponsiveContainer>
 
