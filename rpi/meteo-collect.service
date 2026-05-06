@@ -1,0 +1,35 @@
+[Unit]
+Description=Meteo Pacetluky - sber dat z ABB free@home meteostanice
+Documentation=https://github.com/filipmikeska/freeathome-meteo
+After=network-online.target time-sync.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=raspi
+Group=raspi
+WorkingDirectory=/home/raspi/meteo/rpi
+ExecStart=/usr/bin/node /home/raspi/meteo/rpi/collect.mjs
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=10
+
+# Bezpečnost a izolace
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/raspi/meteo /dev/shm
+
+# Logování — vše do journalu (který je ve volatile mode = RAM)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=meteo-collect
+
+# Šetření zdrojů
+Nice=10
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

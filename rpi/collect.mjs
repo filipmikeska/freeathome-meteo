@@ -3,28 +3,48 @@
 /**
  * Sběr dat z ABB free@home meteostanice — Raspberry Pi verze
  *
- * Čte data z lokálního API SysAP a zapisuje přímo do Turso DB.
- * Spouštěno přes cron každých 10 minut.
+ * Dlouhoběžící daemon: jeden proces, čte data každých 60 s,
+ * zapisuje do Turso DB. Spouštěn jako systemd service.
+ *
+ * Optimalizace pro životnost SD karty:
+ *   - žádný cron (= žádné PAM/auth zápisy do /var/log)
+ *   - žádné diskové logy úspěšných cyklů (jen chyby do RAM)
+ *   - debug log v /dev/shm (tmpfs, RAM)
+ *   - vlastní zpracování Ctrl+C / SIGTERM pro čistý shutdown
  *
  * Konfigurace: rpi/.env
+ *
+ * Spuštění ručně (debug):
+ *   NODE_TLS_REJECT_UNAUTHORIZED=0 node collect.mjs
+ *
+ * Spuštění jednorázové (legacy cron mód):
+ *   ONESHOT=1 node collect.mjs
  */
 
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { appendFileSync } from 'fs';
 
-// Načti .env ze složky rpi/
+// SysAP používá self-signed certifikát — povolíme HTTPS bez ověření CA
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, '.env') });
 
 // === Konfigurace ===
 const DEVICE_ID = process.env.ABB_DEVICE_ID || '7EB10000329B';
-const LOCAL_HOST = process.env.ABB_LOCAL_HOST || '192.168.68.55';
+const LOCAL_HOST = process.env.ABB_LOCAL_HOST || '192.168.68.56';
 const LOCAL_USER = process.env.ABB_LOCAL_USER || 'installer';
 const LOCAL_PASSWORD = process.env.ABB_LOCAL_PASSWORD;
 
 const TURSO_URL = process.env.TURSO_DATABASE_URL?.replace('libsql://', 'https://').trim();
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
+
+const INTERVAL_MS = parseInt(process.env.COLLECT_INTERVAL_MS || '60000', 10);
+const ONESHOT = process.env.ONESHOT === '1';
+const DEBUG = process.env.DEBUG === '1';
+const LOG_FILE = process.env.LOG_FILE || '/dev/shm/meteo.log';
 
 const CHANNELS = {
   brightness:  { channel: 'ch0000', datapoint: 'odp0001' },
@@ -33,12 +53,35 @@ const CHANNELS = {
   wind:        { channel: 'ch0003', datapoint: 'odp0001' },
 };
 
-// === Funkce ===
-
-function log(msg) {
-  const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  console.log(`[${ts}] ${msg}`);
+// === Logování ===
+// stdout/stderr → systemd journal (volatile=RAM-only, viz journald.conf)
+// LOG_FILE → /dev/shm (tmpfs/RAM), persistuje jen v rámci běhu
+function ts() {
+  return new Date().toISOString().slice(0, 19).replace('T', ' ');
 }
+
+function logSafe(stream, msg) {
+  const line = `[${ts()}] ${msg}`;
+  stream.write(line + '\n');
+  try { appendFileSync(LOG_FILE, line + '\n'); } catch {}
+}
+
+// info: jen do journalu (RAM), ne na disk
+function logInfo(msg) {
+  if (DEBUG) logSafe(process.stdout, msg);
+}
+
+// error: vždycky, do journalu i RAM logu
+function logError(msg) {
+  logSafe(process.stderr, `CHYBA: ${msg}`);
+}
+
+// startup/shutdown event: do journalu, do RAM logu
+function logEvent(msg) {
+  logSafe(process.stdout, msg);
+}
+
+// === Sběr dat ===
 
 async function readDatapoint(channel, datapoint) {
   const url = `https://${LOCAL_HOST}/fhapi/v1/api/rest/datapoint/00000000-0000-0000-0000-000000000000/${DEVICE_ID}.${channel}.${datapoint}`;
@@ -46,6 +89,7 @@ async function readDatapoint(channel, datapoint) {
 
   const response = await fetch(url, {
     headers: { Authorization: `Basic ${auth}` },
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {
@@ -80,6 +124,7 @@ async function tursoExecute(sql, args = []) {
         { type: 'close' },
       ],
     }),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {
@@ -96,9 +141,6 @@ async function tursoExecute(sql, args = []) {
 }
 
 async function collectAndStore() {
-  // 1. Přečíst data z meteostanice
-  log('Čtu data z meteostanice...');
-
   const [temperature, brightness, windSpeed, rain] = await Promise.all([
     readDatapoint(CHANNELS.temperature.channel, CHANNELS.temperature.datapoint),
     readDatapoint(CHANNELS.brightness.channel, CHANNELS.brightness.datapoint),
@@ -106,13 +148,7 @@ async function collectAndStore() {
     readDatapoint(CHANNELS.rain.channel, CHANNELS.rain.datapoint),
   ]);
 
-  log(`  Teplota:  ${temperature} °C`);
-  log(`  Jas:      ${brightness} lux`);
-  log(`  Vítr:     ${windSpeed} m/s`);
-  log(`  Déšť:     ${rain === 1 ? 'ANO' : 'NE'}`);
-
-  // 2. Uložit do Turso DB
-  log('Ukládám do databáze...');
+  logInfo(`Teplota=${temperature}°C jas=${brightness}lx vitr=${windSpeed}m/s dest=${rain === 1 ? 1 : 0}`);
 
   await tursoExecute(
     `INSERT INTO measurements (timestamp, temperature, brightness, wind_speed, rain)
@@ -120,7 +156,7 @@ async function collectAndStore() {
     [temperature, brightness, windSpeed, Math.round(rain)]
   );
 
-  // 3. Aktualizovat hodinovou agregaci
+  // Hodinová agregace
   const now = new Date();
   const hourStr = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours())
     .toISOString().replace('T', ' ').slice(0, 19);
@@ -141,7 +177,7 @@ async function collectAndStore() {
     [hourStr, hourStr, nextHourStr]
   );
 
-  // 4. Aktualizovat denní agregaci
+  // Denní agregace
   const dateStr = now.toISOString().slice(0, 10);
   const nextDateStr = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
 
@@ -158,23 +194,75 @@ async function collectAndStore() {
      WHERE timestamp >= ? AND timestamp < ?`,
     [dateStr, dateStr + ' 00:00:00', nextDateStr + ' 00:00:00']
   );
-
-  log('Hotovo!');
 }
 
-// === Spuštění ===
+// === Hlavní smyčka ===
 
-// Ověření konfigurace
+let stopping = false;
+let consecutiveErrors = 0;
+
+async function mainLoop() {
+  while (!stopping) {
+    const startMs = Date.now();
+    try {
+      await collectAndStore();
+      if (consecutiveErrors > 0) {
+        logEvent(`Sber obnoven po ${consecutiveErrors} chybach`);
+        consecutiveErrors = 0;
+      }
+    } catch (err) {
+      consecutiveErrors++;
+      // Logujeme prvních 5 po sobě jdoucích chyb, pak rate-limit (každá 10. chyba)
+      if (consecutiveErrors <= 5 || consecutiveErrors % 10 === 0) {
+        logError(`${err.message} (${consecutiveErrors}. po sobe)`);
+      }
+    }
+
+    if (stopping) break;
+
+    // Spočítej, jak dlouho trval cyklus, čekej na další celou minutu
+    const elapsed = Date.now() - startMs;
+    const sleep = Math.max(1000, INTERVAL_MS - elapsed);
+    await new Promise((r) => setTimeout(r, sleep));
+  }
+}
+
+function shutdown(reason) {
+  if (stopping) return;
+  stopping = true;
+  logEvent(`Ukoncuji (${reason})`);
+  // Krátká chvíle na flush logu, pak konec
+  setTimeout(() => process.exit(0), 100);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('uncaughtException', (err) => {
+  logError(`uncaughtException: ${err.message}`);
+  // Necháme systemd nás restartovat
+  process.exit(1);
+});
+process.on('unhandledRejection', (err) => {
+  logError(`unhandledRejection: ${err?.message || err}`);
+  process.exit(1);
+});
+
+// === Start ===
+
 if (!LOCAL_PASSWORD) {
-  console.error('CHYBA: ABB_LOCAL_PASSWORD není nastaveno v rpi/.env');
+  logError('ABB_LOCAL_PASSWORD neni nastaveno v rpi/.env');
   process.exit(1);
 }
 if (!TURSO_URL || !TURSO_TOKEN) {
-  console.error('CHYBA: TURSO_DATABASE_URL nebo TURSO_AUTH_TOKEN není nastaveno v rpi/.env');
+  logError('TURSO_DATABASE_URL nebo TURSO_AUTH_TOKEN neni nastaveno v rpi/.env');
   process.exit(1);
 }
 
-collectAndStore().catch((err) => {
-  log(`CHYBA: ${err.message}`);
-  process.exit(1);
-});
+if (ONESHOT) {
+  collectAndStore()
+    .then(() => process.exit(0))
+    .catch((err) => { logError(err.message); process.exit(1); });
+} else {
+  logEvent(`Start (interval=${INTERVAL_MS}ms, host=${LOCAL_HOST}, log=${LOG_FILE})`);
+  mainLoop().catch((err) => { logError(`mainLoop: ${err.message}`); process.exit(1); });
+}
