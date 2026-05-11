@@ -109,15 +109,33 @@ echo "=========================================="
 echo " Optimalizace pro životnost SD karty"
 echo "=========================================="
 
-# 7a. Vypnout swap
+# 7a. Vypnout swap (oba typy — starý dphys-swapfile i nový rpi-swap/zram)
+info "Vypínám swap (zápisy ničí SD kartu)..."
+
+# Stará varianta (do Bullseye)
 if systemctl is-enabled dphys-swapfile &>/dev/null 2>&1; then
-  info "Vypínám swap (Pi má 512 MB RAM, sběr žere ~30 MB)..."
-  sudo dphys-swapfile swapoff || true
+  sudo /usr/sbin/dphys-swapfile swapoff 2>/dev/null || true
   sudo systemctl disable dphys-swapfile >/dev/null 2>&1 || true
   sudo apt-get remove --purge -y -qq dphys-swapfile >/dev/null 2>&1 || true
-  ok "Swap vypnut"
+fi
+
+# Nová varianta (Bookworm — rpi-swap používá zram+file)
+sudo /usr/sbin/swapoff -a 2>/dev/null || true
+if systemctl list-units --type=swap --all 2>/dev/null | grep -q "dev-zram"; then
+  sudo systemctl stop dev-zram0.swap 2>/dev/null || true
+  sudo systemctl mask dev-zram0.swap 2>/dev/null || true
+fi
+if [ -f /etc/systemd/system/rpi-swap.service ] || systemctl list-unit-files 2>/dev/null | grep -q "rpi-swap"; then
+  sudo systemctl mask rpi-swap.service 2>/dev/null || true
+fi
+
+# Smazat případné swap soubory
+sudo rm -f /var/swap /var/swap.img /swap.img 2>/dev/null || true
+
+if [ "$(free | awk '/Swap/ {print $2}')" = "0" ]; then
+  ok "Swap vypnut a maskován"
 else
-  ok "Swap už je vypnutý"
+  warn "Swap stále aktivní — restartuj pro úplné vypnutí"
 fi
 
 # 7b. journald do RAM
