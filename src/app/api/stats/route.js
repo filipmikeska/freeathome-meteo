@@ -50,11 +50,26 @@ async function execute(sql, args = []) {
   });
 }
 
+// Vrátí pražskou půlnoc dnešního dne jako Date v UTC.
+// Bere v úvahu letní/zimní čas (DST) přes Intl.
+function pragueMidnightAsUTC() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Prague',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t) => parseInt(parts.find((p) => p.type === t).value, 10);
+  const elapsedMs = (get('hour') * 3600 + get('minute') * 60 + get('second')) * 1000;
+  return new Date(now.getTime() - elapsedMs);
+}
+
 export async function GET() {
   try {
-    // Today's date in UTC
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
+    // Začátek dnešního pražského dne, vyjádřený jako UTC timestamp v DB
+    const todayStart = pragueMidnightAsUTC();
     const from = todayStart.toISOString().slice(0, 19).replace('T', ' ');
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
