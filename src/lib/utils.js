@@ -60,18 +60,25 @@ export function getWindDescription(ms) {
   return 'Vichřice';
 }
 
+// Konvertuje Date na DB-kompatibilní string "YYYY-MM-DD HH:MM:SS" (UTC).
+// V databázi jsou timestampy ukládány tímto formátem (přes SQLite datetime('now')).
+// ISO formát s 'T' a 'Z' by způsobil chybné string-porovnání v BETWEEN.
+function toDbDateTime(date) {
+  return date.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 // Výpočet časových rozsahů pro grafy
 export function getTimeRange(range) {
   const now = new Date();
   switch (range) {
     case '24h':
-      return { from: subHours(now, 24).toISOString(), to: now.toISOString() };
+      return { from: toDbDateTime(subHours(now, 24)), to: toDbDateTime(now) };
     case '7d':
-      return { from: subDays(now, 7).toISOString(), to: now.toISOString() };
+      return { from: toDbDateTime(subDays(now, 7)), to: toDbDateTime(now) };
     case '30d':
-      return { from: subDays(now, 30).toISOString(), to: now.toISOString() };
+      return { from: toDbDateTime(subDays(now, 30)), to: toDbDateTime(now) };
     default:
-      return { from: subHours(now, 24).toISOString(), to: now.toISOString() };
+      return { from: toDbDateTime(subHours(now, 24)), to: toDbDateTime(now) };
   }
 }
 

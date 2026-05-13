@@ -11,9 +11,16 @@ export async function GET(request) {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
+    // Konverze ISO stringu na DB-kompatibilní formát "YYYY-MM-DD HH:MM:SS"
+    const toDb = (s) => {
+      if (!s) return s;
+      // Akceptuje "2026-05-12T06:36:00.000Z" i "2026-05-12 06:36:00"
+      return s.slice(0, 19).replace('T', ' ');
+    };
+
     let timeRange;
     if (from && to) {
-      timeRange = { from, to };
+      timeRange = { from: toDb(from), to: toDb(to) };
     } else if (range) {
       timeRange = getTimeRange(range);
     } else {
