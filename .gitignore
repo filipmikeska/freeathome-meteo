@@ -36,6 +36,7 @@ yarn-error.log*
 
 # rpi logs
 rpi/collect.log
+rpi/logs/
 rpi/node_modules
 
 # IDE
