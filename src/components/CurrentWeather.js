@@ -25,7 +25,7 @@ import {
   getSkyCondition,
   formatTooltipTime,
 } from '@/lib/utils';
-import { useTodayStats } from '@/hooks/useWeatherData';
+import { useTodayStats, useReferenceTemp } from '@/hooks/useWeatherData';
 
 const SKY_ICONS = {
   night: Moon,
@@ -175,7 +175,7 @@ function DetailPopup({ type, stats, onClose }) {
   );
 }
 
-function WeatherCard({ icon: Icon, label, value, detail, className, iconColor, type, stats }) {
+function WeatherCard({ icon: Icon, label, value, detail, subDetail, className, iconColor, type, stats }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -192,6 +192,9 @@ function WeatherCard({ icon: Icon, label, value, detail, className, iconColor, t
         {detail && (
           <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{detail}</div>
         )}
+        {subDetail && (
+          <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{subDetail}</div>
+        )}
       </button>
       {open && (
         <DetailPopup type={type} stats={stats} onClose={() => setOpen(false)} />
@@ -202,6 +205,7 @@ function WeatherCard({ icon: Icon, label, value, detail, className, iconColor, t
 
 export default function CurrentWeather({ data, isLoading }) {
   const { stats } = useTodayStats();
+  const { referenceTemp } = useReferenceTemp();
 
   if (isLoading) {
     return (
@@ -245,6 +249,11 @@ export default function CurrentWeather({ data, isLoading }) {
           if (t < 35) return 'Horko';
           return 'Vedro';
         })()}
+        subDetail={
+          referenceTemp?.temperature != null
+            ? `ref. teplota ${formatTemperature(referenceTemp.temperature)}`
+            : null
+        }
         className={getTemperatureBg(data.temperature)}
         iconColor={getTemperatureColor(data.temperature)}
         type="temperature"

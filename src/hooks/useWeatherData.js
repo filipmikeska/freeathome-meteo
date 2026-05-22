@@ -23,6 +23,20 @@ export function useCurrentWeather() {
   };
 }
 
+// Hook pro referenční venkovní teplotu z čidla kotle Viessmann (projekt p100)
+export function useReferenceTemp() {
+  const { data, error, isLoading } = useSWR('/api/reference-temp', fetcher, {
+    refreshInterval: POLL_INTERVAL,
+    revalidateOnFocus: true,
+  });
+
+  return {
+    referenceTemp: data,
+    isLoading,
+    isError: !!error,
+  };
+}
+
 // Hook pro historická data
 export function useWeatherHistory(range = '24h', from = null, to = null) {
   let url = `/api/history?range=${range}`;
