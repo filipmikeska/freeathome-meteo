@@ -51,6 +51,16 @@ function InfoPopup({ onClose }) {
           </section>
 
           <section>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Referenční teplota</h3>
+            <p>
+              Pod naměřenou teplotou se zobrazuje <strong>referenční teplota</strong> z
+              kotle <strong>Viessmann Vitodens 200-W</strong>. Pochází z venkovního
+              čidla umístěného na <strong>východní straně domu</strong>, slouží pro
+              porovnání s údajem z meteostanice.
+            </p>
+          </section>
+
+          <section>
             <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Sběr dat</h3>
             <p>
               Měření probíhá každých <strong>60 sekund</strong>. Data sbírá{' '}
