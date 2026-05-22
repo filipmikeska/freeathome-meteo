@@ -179,10 +179,10 @@ function WeatherCard({ icon: Icon, label, value, detail, subDetail, className, i
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative">
+    <div className="relative h-full">
       <button
         onClick={() => setOpen(!open)}
-        className={`w-full text-left rounded-xl border p-5 transition-all cursor-pointer hover:shadow-md active:scale-[0.98] ${className}`}
+        className={`w-full h-full text-left rounded-xl border p-5 transition-all cursor-pointer hover:shadow-md active:scale-[0.98] ${className}`}
       >
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</span>
