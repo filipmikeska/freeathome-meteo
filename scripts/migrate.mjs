@@ -75,6 +75,14 @@ const MIGRATIONS = [
 
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_forecast_snapshots_unique
    ON forecast_snapshots(source, forecast_date, horizon)`,
+
+  // Persistentní cache externích předpovědí — při výpadku Open-Meteo / Yr.no
+  // server vrátí poslední úspěšný JSON snapshot z této tabulky.
+  `CREATE TABLE IF NOT EXISTS forecast_cache (
+    source TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
 ];
 
 async function migrate() {

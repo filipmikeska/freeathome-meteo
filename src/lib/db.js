@@ -191,6 +191,30 @@ export async function getForecastSnapshots({ from, to }) {
   return rows;
 }
 
+// Persistentní cache externích předpovědí (Open-Meteo, Yr.no).
+// Při výpadku externí API přečteme poslední úspěšný JSON z této tabulky,
+// aby se uživateli zobrazila aspoň zastaralá data místo prázdné karty.
+export async function saveForecastCache(source, data) {
+  await execute(
+    `INSERT OR REPLACE INTO forecast_cache (source, data, updated_at)
+     VALUES (?, ?, datetime('now'))`,
+    [source, JSON.stringify(data)]
+  );
+}
+
+export async function getForecastCache(source) {
+  const { rows } = await execute(
+    'SELECT data, updated_at FROM forecast_cache WHERE source = ? LIMIT 1',
+    [source]
+  );
+  if (!rows[0]) return null;
+  try {
+    return { data: JSON.parse(rows[0].data), updatedAt: rows[0].updated_at };
+  } catch {
+    return null;
+  }
+}
+
 export async function cleanupOldMeasurements(retentionDays = 365) {
   await execute(
     `DELETE FROM measurements WHERE timestamp < datetime('now', ?)`,

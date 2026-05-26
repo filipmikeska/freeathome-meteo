@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { yrSymbolToWmoCode } from '@/lib/weather-codes';
-import { saveForecastSnapshot } from '@/lib/db';
+import { saveForecastSnapshot, saveForecastCache, getForecastCache } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -207,6 +207,13 @@ export async function GET() {
     cachedForecast = result;
     cacheTimestamp = now;
 
+    // Persistentní DB cache pro fallback při výpadku Yr.no
+    try {
+      await saveForecastCache('yr', result);
+    } catch (e) {
+      console.error('Error saving Yr.no cache to DB:', e);
+    }
+
     // Uložit snapshot předpovědi 1x denně
     if (lastSnapshotDate !== today) {
       lastSnapshotDate = today;
@@ -232,8 +239,33 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching Yr.no forecast:', error);
 
+    // 1) Paměťová cache (rychlý fallback)
     if (cachedForecast) {
       return NextResponse.json({ ...cachedForecast, stale: true });
+    }
+
+    // 2) Persistentní DB cache (přežije cold start Vercel funkce)
+    try {
+      const persisted = await getForecastCache('yr');
+      if (persisted?.data) {
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
+        const dailyAll = persisted.data.daily || [];
+        const dailyFuture = dailyAll.filter((d) => d.date >= today);
+        const finalDaily = dailyFuture.length > 0 ? dailyFuture : dailyAll;
+        const finalHourly = {};
+        for (const d of finalDaily) {
+          if (persisted.data.hourly?.[d.date]) finalHourly[d.date] = persisted.data.hourly[d.date];
+        }
+        return NextResponse.json({
+          ...persisted.data,
+          daily: finalDaily,
+          hourly: finalHourly,
+          stale: true,
+          cacheUpdatedAt: persisted.updatedAt,
+        });
+      }
+    } catch (e) {
+      console.error('Error reading Yr.no cache from DB:', e);
     }
 
     return NextResponse.json(

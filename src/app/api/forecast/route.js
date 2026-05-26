@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { saveForecastSnapshot } from '@/lib/db';
+import { saveForecastSnapshot, saveForecastCache, getForecastCache } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,9 +89,14 @@ export async function GET() {
       hourly: filteredHourly,
     };
 
-    // Uložit do cache
+    // Uložit do paměťové cache + persistentní DB cache (fallback při výpadku Open-Meteo)
     cachedForecast = result;
     cacheTimestamp = now;
+    try {
+      await saveForecastCache('open-meteo', result);
+    } catch (e) {
+      console.error('Error saving Open-Meteo cache to DB:', e);
+    }
 
     // Uložit snapshot předpovědi 1x denně
     if (lastSnapshotDate !== today) {
@@ -118,9 +123,36 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching forecast:', error);
 
-    // Vrátit starý cache pokud existuje
+    // 1) Vrátit paměťovou cache pokud existuje (rychlý fallback)
     if (cachedForecast) {
       return NextResponse.json({ ...cachedForecast, stale: true });
+    }
+
+    // 2) Vrátit persistentní DB cache (přežije cold start Vercel funkce)
+    try {
+      const persisted = await getForecastCache('open-meteo');
+      if (persisted?.data) {
+        // Při výpadku externí API nemusí být v cachi dnešní den.
+        // Vrátíme co máme — klient si vyfiltruje budoucí dny sám,
+        // ale ukázat staré dny je lepší než prázdná karta.
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
+        const dailyAll = persisted.data.daily || [];
+        const dailyFuture = dailyAll.filter((d) => d.date >= today);
+        const finalDaily = dailyFuture.length > 0 ? dailyFuture : dailyAll;
+        const finalHourly = {};
+        for (const d of finalDaily) {
+          if (persisted.data.hourly?.[d.date]) finalHourly[d.date] = persisted.data.hourly[d.date];
+        }
+        return NextResponse.json({
+          ...persisted.data,
+          daily: finalDaily,
+          hourly: finalHourly,
+          stale: true,
+          cacheUpdatedAt: persisted.updatedAt,
+        });
+      }
+    } catch (e) {
+      console.error('Error reading Open-Meteo cache from DB:', e);
     }
 
     return NextResponse.json(
