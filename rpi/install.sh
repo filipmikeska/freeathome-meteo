@@ -224,16 +224,20 @@ echo "=========================================="
 echo " Watchdog a samoobnova"
 echo "=========================================="
 
-# 8a. Hardwarový watchdog (BCM2835) — když jádro/systemd zamrzne, čip Pi restartuje
+# 8a. Hardwarový watchdog (BCM2835) — když jádro/systemd zamrzne, čip Pi restartuje.
+# Raspberry Pi OS Trixie ho zapíná sám (40-rpi-enable-watchdog.conf); jinde ho doplníme.
+sudo rm -f /etc/systemd/system.conf.d/10-watchdog.conf
 if [ -e /dev/watchdog ]; then
-  sudo mkdir -p /etc/systemd/system.conf.d
-  sudo tee /etc/systemd/system.conf.d/10-watchdog.conf >/dev/null <<'EOF'
+  if ! systemd-analyze cat-config systemd/system.conf 2>/dev/null | grep -q '^RuntimeWatchdogSec='; then
+    sudo mkdir -p /etc/systemd/system.conf.d
+    sudo tee /etc/systemd/system.conf.d/50-meteo-watchdog.conf >/dev/null <<'EOF'
 [Manager]
-RuntimeWatchdogSec=15
-RebootWatchdogSec=2min
+RuntimeWatchdogSec=1m
+RebootWatchdogSec=2m
 EOF
+  fi
   sudo systemctl daemon-reexec
-  ok "HW watchdog aktivní (zamrznutí > 15 s → reboot)"
+  ok "HW watchdog: $(systemctl show -p RuntimeWatchdogUSec --value) (zamrznutí → reboot)"
 else
   warn "/dev/watchdog neexistuje — HW watchdog přeskočen"
 fi

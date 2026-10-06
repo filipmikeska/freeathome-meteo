@@ -193,6 +193,29 @@ curl -k -s -o /dev/null -w 'HTTP: %{http_code}\n' --max-time 10 https://192.168.
 
 ---
 
+### 3.5 Samoobnova a marker posledního zápisu
+
+| Vrstva | Co hlídá | Reakce |
+|--------|----------|--------|
+| HW watchdog (BCM2835, 1 min, zapíná ho Pi OS) | zamrzlé jádro/systemd | reboot Pi |
+| `kernel.panic = 10` | kernel panic | reboot za 10 s |
+| systemd `WatchdogSec=300` | zaseknutý `collect.mjs` | kill + restart služby |
+| 20 chyb v řadě → exit; `StartLimitBurst=5/3h` + `StartLimitAction=reboot` | trvale mrtvá Wi-Fi / SysAP | reboot Pi po ~100 min |
+| `wifi.powersave = 2` | uspávání Wi-Fi na Zero 2W | prevence |
+
+Journal je v RAM, po rebootu zmizí. Co se dělo před restartem, ukáže marker:
+
+```bash
+cat ~/meteo/last-write.txt                                    # poslední úspěch/chyba, důvod zápisu
+sudo journalctl -u meteo-collect -o cat | grep "Predchozi beh"  # obsah markeru po startu
+```
+
+Marker se zapisuje 1× za hodinu, při ukončení a při pádu (`reason`: `hourly`, `shutdown-SIGTERM`, `too-many-errors`, `crash`).
+
+Incident 2026-10-04 → 06: sběr stál ~32 h bez výpadku proudu, HW watchdog Pi nerestartoval (systém tedy nezamrzl) → pravděpodobně výpadek Wi-Fi nebo zaseknutá služba.
+
+---
+
 ## 4. Obnova přes SD kartu (Wi-Fi nefunguje)
 
 Postup zůstává stejný jako v původní verzi runbooku — viz git historie.
