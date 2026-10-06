@@ -218,7 +218,43 @@ sudo systemctl disable apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || tr
 # 7h. Vypnout man-db cron (přebudovává man cache, hodně I/O)
 sudo systemctl disable man-db.timer 2>/dev/null || true
 
-# === 8. Restart služby ===
+# === 8. Odolnost proti zamrznutí ===
+echo
+echo "=========================================="
+echo " Watchdog a samoobnova"
+echo "=========================================="
+
+# 8a. Hardwarový watchdog (BCM2835) — když jádro/systemd zamrzne, čip Pi restartuje
+if [ -e /dev/watchdog ]; then
+  sudo mkdir -p /etc/systemd/system.conf.d
+  sudo tee /etc/systemd/system.conf.d/10-watchdog.conf >/dev/null <<'EOF'
+[Manager]
+RuntimeWatchdogSec=15
+RebootWatchdogSec=2min
+EOF
+  sudo systemctl daemon-reexec
+  ok "HW watchdog aktivní (zamrznutí > 15 s → reboot)"
+else
+  warn "/dev/watchdog neexistuje — HW watchdog přeskočen"
+fi
+
+# 8b. Kernel panic → automatický reboot po 10 s
+echo "kernel.panic = 10" | sudo tee /etc/sysctl.d/90-panic-reboot.conf >/dev/null
+sudo sysctl -q -p /etc/sysctl.d/90-panic-reboot.conf
+ok "Kernel panic → reboot za 10 s"
+
+# 8c. Wi-Fi power save vypnout (častá příčina výpadků Wi-Fi na Pi Zero 2W)
+if [ -d /etc/NetworkManager ]; then
+  sudo mkdir -p /etc/NetworkManager/conf.d
+  sudo tee /etc/NetworkManager/conf.d/10-wifi-powersave-off.conf >/dev/null <<'EOF'
+[connection]
+wifi.powersave = 2
+EOF
+  sudo systemctl reload NetworkManager 2>/dev/null || true
+  ok "Wi-Fi power save vypnut (aktivní po reconnectu/rebootu)"
+fi
+
+# === 9. Restart služby ===
 info "Spouštím službu meteo-collect..."
 sudo systemctl restart meteo-collect.service
 sleep 5
@@ -231,7 +267,7 @@ else
   exit 1
 fi
 
-# === 9. Souhrn ===
+# === 10. Souhrn ===
 echo
 echo "=========================================="
 echo -e " ${GREEN}INSTALACE DOKONČENA${NC}"
@@ -240,6 +276,7 @@ echo
 echo " Stav služby:    sudo systemctl status meteo-collect"
 echo " Live logy:      sudo journalctl -u meteo-collect -f"
 echo " Debug log RAM:  tail -f /dev/shm/meteo.log"
+echo " Posl. zápis:    cat ~/meteo/last-write.txt"
 echo " Restart:        sudo systemctl restart meteo-collect"
 echo " Stop:           sudo systemctl stop meteo-collect"
 echo " Update kódu:    cd ~/meteo && git pull && sudo systemctl restart meteo-collect"

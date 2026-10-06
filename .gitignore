@@ -44,3 +44,5 @@ rpi/node_modules
 .vscode/
 
 .vercel
+last-write.txt
+last-write.txt.tmp

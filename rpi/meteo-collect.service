@@ -3,6 +3,11 @@ Description=Meteo Pacetluky - sber dat z ABB free@home meteostanice
 Documentation=https://github.com/filipmikeska/freeathome-meteo
 After=network-online.target time-sync.target
 Wants=network-online.target
+# Když služba padá opakovaně (např. mrtvá Wi-Fi), rebootuj celé Pi.
+# collect.mjs se ukončí po 20 chybách v řadě (~20 min) → 5 startů za 3 h = ~100 min výpadku → reboot.
+StartLimitIntervalSec=3h
+StartLimitBurst=5
+StartLimitAction=reboot
 
 [Service]
 Type=simple
@@ -12,8 +17,10 @@ WorkingDirectory=/home/raspi/meteo/rpi
 ExecStart=/usr/bin/node /home/raspi/meteo/rpi/collect.mjs
 Restart=always
 RestartSec=10
-StartLimitInterval=300
-StartLimitBurst=10
+
+# Watchdog: collect.mjs pinguje každý cyklus (~60 s). Bez pingu 5 min → kill + restart.
+WatchdogSec=300
+NotifyAccess=all
 
 # Bezpečnost a izolace
 NoNewPrivileges=true

@@ -24,7 +24,8 @@
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { appendFileSync } from 'fs';
+import { appendFileSync, readFileSync, writeFileSync, renameSync } from 'fs';
+import { execFile } from 'child_process';
 
 // SysAP používá self-signed certifikát — povolíme HTTPS bez ověření CA
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -45,6 +46,10 @@ const INTERVAL_MS = parseInt(process.env.COLLECT_INTERVAL_MS || '60000', 10);
 const ONESHOT = process.env.ONESHOT === '1';
 const DEBUG = process.env.DEBUG === '1';
 const LOG_FILE = process.env.LOG_FILE || '/dev/shm/meteo.log';
+// Jediný soubor zapisovaný na SD kartu — max ~1× za hodinu, přežije restart
+const MARKER_FILE = process.env.MARKER_FILE || join(__dirname, '..', 'last-write.txt');
+// Po tolika chybách v řadě se proces ukončí; systemd restartuje a při opakování rebootuje Pi
+const MAX_CONSECUTIVE_ERRORS = parseInt(process.env.MAX_CONSECUTIVE_ERRORS || '20', 10);
 
 const CHANNELS = {
   brightness:  { channel: 'ch0000', datapoint: 'odp0001' },
@@ -201,23 +206,81 @@ async function collectAndStore() {
 let stopping = false;
 let consecutiveErrors = 0;
 
+// === Marker posledního zápisu (perzistentní, přežije restart) ===
+
+const marker = {
+  startedAt: new Date().toISOString(),
+  lastSuccess: null,
+  lastError: null,
+  lastErrorMsg: null,
+  consecutiveErrors: 0,
+};
+let markerHour = null;
+
+function writeMarker(reason) {
+  marker.consecutiveErrors = consecutiveErrors;
+  marker.writtenAt = new Date().toISOString();
+  marker.reason = reason;
+  const tmp = MARKER_FILE + '.tmp';
+  try {
+    writeFileSync(tmp, JSON.stringify(marker, null, 2) + '\n');
+    renameSync(tmp, MARKER_FILE); // atomicky — při výpadku proudu nezůstane rozbitý soubor
+  } catch (e) {
+    logError(`marker: ${e.message}`);
+  }
+}
+
+function reportPreviousRun() {
+  try {
+    const prev = JSON.parse(readFileSync(MARKER_FILE, 'utf8'));
+    logEvent(
+      `Predchozi beh: start=${prev.startedAt} posledni_uspech=${prev.lastSuccess} ` +
+      `posledni_chyba=${prev.lastError} (${prev.lastErrorMsg}) chyb_v_rade=${prev.consecutiveErrors} ` +
+      `zapsano=${prev.writtenAt} duvod=${prev.reason}`
+    );
+  } catch {
+    logEvent('Predchozi beh: marker nenalezen');
+  }
+}
+
+// === systemd watchdog ===
+// Ping dokazuje, že smyčka žije. Když se proces zasekne, systemd ho po WatchdogSec zabije a restartuje.
+function watchdogPing() {
+  if (!process.env.NOTIFY_SOCKET) return;
+  execFile('systemd-notify', ['WATCHDOG=1'], () => {});
+}
+
 async function mainLoop() {
   while (!stopping) {
     const startMs = Date.now();
     try {
       await collectAndStore();
+      marker.lastSuccess = new Date().toISOString();
       if (consecutiveErrors > 0) {
         logEvent(`Sber obnoven po ${consecutiveErrors} chybach`);
         consecutiveErrors = 0;
       }
+      const hour = marker.lastSuccess.slice(0, 13);
+      if (hour !== markerHour) {
+        markerHour = hour;
+        writeMarker('hourly');
+      }
     } catch (err) {
       consecutiveErrors++;
+      marker.lastError = new Date().toISOString();
+      marker.lastErrorMsg = err.message;
       // Logujeme prvních 5 po sobě jdoucích chyb, pak rate-limit (každá 10. chyba)
       if (consecutiveErrors <= 5 || consecutiveErrors % 10 === 0) {
         logError(`${err.message} (${consecutiveErrors}. po sobe)`);
       }
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+        logError(`${consecutiveErrors} chyb v rade — ukoncuji, systemd restartuje sluzbu`);
+        writeMarker('too-many-errors');
+        process.exit(1);
+      }
     }
 
+    watchdogPing();
     if (stopping) break;
 
     // Spočítej, jak dlouho trval cyklus, čekej na další celou minutu
@@ -231,6 +294,7 @@ function shutdown(reason) {
   if (stopping) return;
   stopping = true;
   logEvent(`Ukoncuji (${reason})`);
+  writeMarker(`shutdown-${reason}`);
   // Krátká chvíle na flush logu, pak konec
   setTimeout(() => process.exit(0), 100);
 }
@@ -239,6 +303,9 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('uncaughtException', (err) => {
   logError(`uncaughtException: ${err.message}`);
+  marker.lastError = new Date().toISOString();
+  marker.lastErrorMsg = `uncaughtException: ${err.message}`;
+  writeMarker('crash');
   // Necháme systemd nás restartovat
   process.exit(1);
 });
@@ -264,5 +331,7 @@ if (ONESHOT) {
     .catch((err) => { logError(err.message); process.exit(1); });
 } else {
   logEvent(`Start (interval=${INTERVAL_MS}ms, host=${LOCAL_HOST}, log=${LOG_FILE})`);
+  reportPreviousRun();
+  watchdogPing();
   mainLoop().catch((err) => { logError(`mainLoop: ${err.message}`); process.exit(1); });
 }
