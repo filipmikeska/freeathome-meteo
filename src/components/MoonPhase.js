@@ -101,16 +101,16 @@ function getPhaseProgress(phaseName) {
   return (idx / 8) * 100 + 6.25;
 }
 
-function daysUntil(dateStr, refDate) {
-  if (!dateStr || !refDate) return null;
-  const [day, monthDot] = dateStr.split('. ');
-  const month = parseInt(monthDot);
-  const d = parseInt(day);
-  const ref = new Date(refDate);
-  const target = new Date(ref.getFullYear(), month - 1, d);
-  if (target < ref) target.setFullYear(target.getFullYear() + 1);
-  const diff = Math.round((target - ref) / 86400000);
-  return diff;
+function daysUntil(event, refDate) {
+  if (!event?.year || !refDate) return null;
+  const [y, m, d] = refDate.split('-').map(Number);
+  return Math.round((Date.UTC(event.year, event.month - 1, event.day) - Date.UTC(y, m - 1, d)) / 86400000);
+}
+
+function formatDaysUntil(days) {
+  if (days === 0) return 'dnes';
+  if (days === 1) return 'zítra';
+  return `za ${days} ${days < 5 ? 'dny' : 'dní'}`;
 }
 
 export default function MoonPhase({ moon, isLoading }) {
@@ -188,14 +188,14 @@ export default function MoonPhase({ moon, isLoading }) {
       {upcoming && upcoming.length > 0 && (
         <div className="flex justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
           {upcoming.slice(0, 3).map((p, i) => {
-            const days = daysUntil(p.date, date);
+            const days = daysUntil(p, date);
             return (
               <div key={i} className="text-center">
                 <div className="text-xs text-gray-400">{PHASE_CZ[p.phase] || p.phase}</div>
                 <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">{p.date}</div>
                 {days != null && (
                   <div className="text-[10px] text-gray-400">
-                    za {days} {days < 5 ? 'dny' : 'dní'}
+                    {formatDaysUntil(days)}
                   </div>
                 )}
               </div>

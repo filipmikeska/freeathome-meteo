@@ -11,11 +11,13 @@
     "migrate": "node scripts/migrate.mjs",
     "seed": "node scripts/seed-mock-data.mjs",
     "collect": "node scripts/collect-data.mjs",
-    "check-connection": "node scripts/check-connection.mjs"
+    "check-connection": "node scripts/check-connection.mjs",
+    "verify-moon": "node scripts/verify-moon.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",
     "@vercel/analytics": "^2.0.1",
+    "astronomy-engine": "2.1.19",
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
     "leaflet": "^1.9.4",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.11",
+    "astronomia": "4.1.1",
     "autoprefixer": "^10.4.27",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.35",
