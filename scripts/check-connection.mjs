@@ -14,7 +14,7 @@ const DEVICE_ID = process.env.ABB_DEVICE_ID || '7EB10000329B';
 const mode = process.env.ABB_API_MODE || 'cloud';
 
 async function testLocal() {
-  const host = process.env.ABB_LOCAL_HOST || '192.168.68.55';
+  const host = process.env.ABB_LOCAL_HOST || '192.168.68.56';
   const user = process.env.ABB_LOCAL_USER || 'installer';
   const password = process.env.ABB_LOCAL_PASSWORD;
 

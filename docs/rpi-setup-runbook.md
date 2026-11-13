@@ -9,7 +9,9 @@ Kompletní postup nasazení daemonu `collect.mjs` na Raspberry Pi Zero 2W pro me
 | Hardware | Raspberry Pi Zero 2W |
 | OS | Raspberry Pi OS Lite (64-bit, Bookworm) |
 | Uživatel | `raspi` |
-| Hostname | `raspberrypi` |
+| Hostname | `RasPi` |
+| **RPi IP** | **`192.168.68.55`** (DHCP, MAC `88:a2:9e:c5:0d:7c`), pozor, nezaměnit se SysAP na `.56` |
+| SSH | `ssh raspi@192.168.68.55` (klíč, sudo bez hesla) |
 | Wi-Fi SSID | `Holly_100` (2.4 GHz — Zero 2W 5 GHz neumí) |
 | **SysAP IP** | **`192.168.68.56`** |
 | SysAP účet | `installer` |
@@ -17,6 +19,20 @@ Kompletní postup nasazení daemonu `collect.mjs` na Raspberry Pi Zero 2W pro me
 | Frekvence sběru | 1× za minutu (interní setInterval) |
 | Architektura | systemd daemon (NE cron) |
 | Logy | journald (volatile, RAM) + `/dev/shm/meteo.log` (RAM) |
+
+### Jak najít RPi v síti
+
+`RasPi.local` po instalaci **nefunguje**: `install.sh` vypíná avahi (mDNS). Používej IP adresu.
+IP přiděluje router přes DHCP a může se změnit. Dřív bylo Pi na `.58`, teď je na `.55`.
+Doporučení: nastavit v routeru rezervaci IP pro MAC `88:a2:9e:c5:0d:7c`.
+
+Když Pi na `.55` neodpovídá, najdi ho podle MAC (prefix `88-a2-9e` = Raspberry Pi):
+
+```powershell
+arp -a | findstr 88-a2-9e
+```
+
+Pokud ho `arp` nevypíše, nejdřív pingni celou síť (`1..254 | % { ping -n 1 -w 200 192.168.68.$_ > $null }`) a zkus znovu.
 
 ---
 
@@ -55,7 +71,7 @@ Kompletní postup nasazení daemonu `collect.mjs` na Raspberry Pi Zero 2W pro me
    - **OS**: Raspberry Pi OS Lite (64-bit, Bookworm)
    - **Storage**: SD karta
 4. **EDIT SETTINGS**:
-   - Hostname: `raspberrypi`
+   - Hostname: `RasPi`
    - User: `raspi` / `<silné heslo>`
    - Wi-Fi: `Holly_100` / `<heslo k Wi-Fi>` / country `CZ`
    - Locale: `Europe/Prague`, keyboard `cz`
@@ -65,17 +81,17 @@ Kompletní postup nasazení daemonu `collect.mjs` na Raspberry Pi Zero 2W pro me
 
 ### 1.2 První přihlášení a SSH klíč
 
-Z PowerShellu:
+Z PowerShellu. Nové Pi může od routeru dostat jinou IP, takže ji nejdřív ověř
+(viz [Jak najít RPi v síti](#jak-najít-rpi-v-síti)) a dosaď do `$PI`:
 
 ```powershell
-# Vyčisti staré SSH host keys
-ssh-keygen -R 192.168.68.58
-ssh-keygen -R raspberrypi.local
+$PI = "192.168.68.55"
+
+# Vyčisti staré SSH host keys (po reinstalaci má Pi nový klíč)
+ssh-keygen -R $PI
 
 # Připoj se (zadej heslo z Imageru, yes na fingerprint)
-ssh raspi@raspberrypi.local
-
-# Pokud nefunguje, najdi IP v routeru a použij ji přímo
+ssh raspi@$PI
 ```
 
 Z dalšího okna PowerShellu (na PC) zkopíruj SSH klíč:
@@ -84,13 +100,13 @@ Z dalšího okna PowerShellu (na PC) zkopíruj SSH klíč:
 if (-not (Test-Path "$env:USERPROFILE\.ssh\id_ed25519.pub")) {
   ssh-keygen -t ed25519 -N '""' -f "$env:USERPROFILE\.ssh\id_ed25519" -C "produ@meteopacetluky"
 }
-Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub" | ssh raspi@raspberrypi.local "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub" | ssh raspi@$PI "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
 
 Passwordless sudo (jednorázově):
 
 ```powershell
-ssh -t raspi@raspberrypi.local "echo 'raspi ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/010_raspi-nopasswd && sudo chmod 440 /etc/sudoers.d/010_raspi-nopasswd"
+ssh -t raspi@$PI "echo 'raspi ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/010_raspi-nopasswd && sudo chmod 440 /etc/sudoers.d/010_raspi-nopasswd"
 ```
 
 ### 1.3 Instalace přes install.sh
@@ -151,7 +167,7 @@ Web https://meteopacetluky.cz/api/current → `timestamp` (UTC) v posledních 2 
 ## 2. Update kódu po změně v GitHubu
 
 ```bash
-ssh raspi@raspberrypi.local "cd ~/meteo && git pull && sudo systemctl restart meteo-collect"
+ssh raspi@192.168.68.55 "cd ~/meteo && git pull --ff-only && sudo systemctl restart meteo-collect"
 ```
 
 ---
@@ -259,7 +275,8 @@ a navíc systém zapisoval ~10 000×/den. Po našich optimalizacích bude zápis
 1. **Pi Zero 2W má JEN 1 zelenou LED** (žádná červená)
 2. **Pi Zero 2W neumí 5 GHz Wi-Fi**
 3. **SysAP self-signed cert** → `NODE_TLS_REJECT_UNAUTHORIZED=0` je nyní zapečené v `collect.mjs`
-4. **SysAP IP `.56`**, ne `.55` (chyba ve staré dokumentaci)
+4. **SysAP je na `.56`, Raspberry Pi na `.55`.** Starší dokumentace měla `.55` u SysAPu. Obě IP jsou z DHCP.
+   **`.local` hostname po instalaci nefunguje**, protože `install.sh` vypíná avahi. K Pi se připojuj přes IP.
 5. **Cloud-init re-init smaže home** — pokud měníš `instance-id`, počítej s reinstalací projektu
 6. **Změna SSID/hesla = neplatný PSK hash** v cloud-init network-config → použij plain text
 7. **systemd `Restart=always`** automaticky restartuje při výpadku sítě nebo SysAPu

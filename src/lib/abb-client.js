@@ -10,7 +10,7 @@ const CHANNELS = {
 
 // Přečte jednu hodnotu z lokálního API
 async function readLocalDatapoint(channel, datapoint) {
-  const host = process.env.ABB_LOCAL_HOST || '192.168.68.55';
+  const host = process.env.ABB_LOCAL_HOST || '192.168.68.56';
   const user = process.env.ABB_LOCAL_USER || 'installer';
   const password = process.env.ABB_LOCAL_PASSWORD;
 
