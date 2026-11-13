@@ -86,12 +86,18 @@ Schéma je v `scripts/migrate.mjs`.
 |---------|-------|
 | `measurements` | Raw data, jeden řádek na měření (~1440/den z RPi + případné záložní běhy) |
 | `hourly_aggregates` | Průměr / min / max za hodinu, minuty srážek (`hour` je UNIQUE) |
-| `daily_aggregates` | Průměr / min / max za den, minuty srážek (`date` je UNIQUE) |
+| `daily_aggregates` | Průměr / min / max za den, minuty srážek = součet hodinových (`date` je UNIQUE) |
 | `forecast_snapshots` | Denní předpověď (zdroj, datum, horizont) pro vyhodnocení přesnosti |
 | `forecast_cache` | Poslední úspěšná odpověď předpovědního API (fallback při výpadku a cold startu) |
 
-Časy v DB jsou v UTC ve formátu `YYYY-MM-DD HH:MM:SS`. Denní hranice (`/api/stats`) se počítají
-podle pražského času.
+Časy v DB jsou v UTC ve formátu `YYYY-MM-DD HH:MM:SS`. Hodinové a denní agregace jsou po UTC
+hodinách a dnech, jen `/api/stats` počítá „dnešek“ od pražské půlnoci.
+
+**Minuty srážek** (`rain_minutes`) = podíl měření s `rain = 1` v hodině × pokryté minuty hodiny
+(u probíhající hodiny jen uplynulé). Výpočet nezávisí na intervalu sběru (RPi 1×/min, záloha 1×/10 min).
+Stejný SQL je ve třech collectorech: `rpi/collect.mjs`, `scripts/collect-data.mjs` a `src/lib/db.js`.
+Při změně je potřeba upravit všechny tři. Data uložená starým výpočtem (10 min za každé měření, tedy až 10×
+víc) přepočítá `scripts/recompute-rain-minutes.mjs`.
 
 ## Retence dat
 

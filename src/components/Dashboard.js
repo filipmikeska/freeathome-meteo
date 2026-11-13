@@ -128,6 +128,7 @@ export default function Dashboard() {
 
   const { history, isLoading: historyLoading } = useWeatherHistory(
     historyParams.range === 'custom' ? '24h' : historyParams.range,
+    // Při from/to API samo zvolí raw / hodinová / denní data podle délky rozsahu
     historyParams.from,
     historyParams.to
   );
@@ -198,9 +199,10 @@ export default function Dashboard() {
                 onCustomChange={handleCustomChange}
               />
             </div>
+            {/* history.range = formát osy podle délky rozsahu (důležité pro „Vlastní“) */}
             <WeatherChart
               data={history?.data}
-              range={range}
+              range={history?.range ?? range}
               isLoading={historyLoading}
             />
           </section>

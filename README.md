@@ -106,6 +106,8 @@ Volitelně `npm run seed` vygeneruje testovací data za 30 dní. Nespouštějte 
 | `check-connection` | Test spojení s ABB API (lokální i cloud) |
 | `verify-moon` | Porovná výpočet fáze Měsíce s nezávislou knihovnou `astronomia` |
 
+Jednorázové skripty: `node scripts/recompute-rain-minutes.mjs [--apply]` přepočítá minuty srážek v agregacích.
+
 ### Environment proměnné (web)
 
 | Proměnná | Povinná | Popis |

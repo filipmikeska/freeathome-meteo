@@ -42,23 +42,24 @@ Pokud v DB nejsou data, vrací `404 { "error": "No data available" }`.
 
 | Parametr | Popis |
 |----------|-------|
-| `range` | `24h` (výchozí), `7d`, `30d` |
-| `from`, `to` | Vlastní rozsah (ISO 8601 nebo `YYYY-MM-DD HH:MM:SS`). Má přednost před `range`. |
+| `range` | `24h` (výchozí, i pro neznámou hodnotu), `7d`, `30d` |
+| `from`, `to` | Vlastní rozsah (ISO 8601 nebo `YYYY-MM-DD HH:MM:SS`). Má přednost před `range`. `from` musí být před `to`, jinak `400`. |
 
-Zdroj dat podle `range`:
+Zdroj dat (`resolution` v odpovědi):
 
-| `range` | Zdroj | Pole navíc |
-|---------|-------|------------|
-| `24h` nebo jen `from`/`to` | Raw `measurements` (max. 2000 řádků, vzestupně) | `rain` |
-| `7d` | `hourly_aggregates` | `tempMin`, `tempMax`, `brightnessMax`, `windMax`, `rainMinutes` |
-| cokoli jiného (`30d`) | `daily_aggregates` | stejná jako u `7d` |
+| Rozsah | `resolution` | Zdroj | Pole navíc |
+|--------|--------------|-------|------------|
+| `24h`, vlastní do 48 h | `raw` | `measurements` (max. 5000 řádků) | `rain` |
+| `7d`, vlastní do 14 dní | `hourly` | `hourly_aggregates` | `tempMin`, `tempMax`, `brightnessMax`, `windMax`, `rainMinutes` |
+| `30d`, vlastní nad 14 dní | `daily` | `daily_aggregates` (celé dny včetně prvního) | stejná jako u `hourly` |
 
-> Frontend posílá vlastní rozsah bez `range`, takže dostane raw data omezená na 2000 řádků.
-> Při sběru 1× za minutu to pokryje jen prvních ~33 hodin delšího rozsahu.
+`range` v odpovědi určuje formát popisků osy grafu. U vlastního rozsahu ho API odvodí z délky:
+do 24 h `24h`, raw/hourly `7d`, daily `30d`.
 
 ```json
 {
   "range": "24h",
+  "resolution": "raw",
   "from": "2026-11-12 14:30:00",
   "to": "2026-11-13 14:30:00",
   "count": 1440,

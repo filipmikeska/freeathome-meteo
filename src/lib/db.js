@@ -145,10 +145,14 @@ export async function computeHourlyAggregate(hourStr) {
        AVG(temperature), MIN(temperature), MAX(temperature),
        AVG(brightness), MAX(brightness),
        AVG(wind_speed), MAX(wind_speed),
-       SUM(CASE WHEN rain = 1 THEN 10 ELSE 0 END)
+       -- podíl měření se srážkami × pokryté minuty hodiny (nezávisí na intervalu sběru)
+       COALESCE(CAST(ROUND(
+         SUM(CASE WHEN rain = 1 THEN 1 ELSE 0 END) * 1.0 / COUNT(rain)
+         * MIN(60.0, (julianday('now') - julianday(?)) * 1440.0)
+       ) AS INTEGER), 0)
      FROM measurements
      WHERE timestamp >= ? AND timestamp < ?`,
-    [hourStr, hourStr, nextHour]
+    [hourStr, hourStr, hourStr, nextHour]
   );
 }
 
@@ -165,10 +169,11 @@ export async function computeDailyAggregate(dateStr) {
        AVG(temperature), MIN(temperature), MAX(temperature),
        AVG(brightness), MAX(brightness),
        AVG(wind_speed), MAX(wind_speed),
-       SUM(CASE WHEN rain = 1 THEN 10 ELSE 0 END)
+       (SELECT COALESCE(SUM(rain_minutes), 0) FROM hourly_aggregates
+         WHERE hour >= ? AND hour < ?)
      FROM measurements
      WHERE timestamp >= ? AND timestamp < ?`,
-    [dateStr, dateStr + ' 00:00:00', nextDate + ' 00:00:00']
+    [dateStr, dateStr + ' 00:00:00', nextDate + ' 00:00:00', dateStr + ' 00:00:00', nextDate + ' 00:00:00']
   );
 }
 
