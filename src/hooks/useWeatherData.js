@@ -41,6 +41,26 @@ export function useDayHistory(from, to, live) {
   };
 }
 
+// Hook pro kalendář jasna: dny měsíce s daty a minutami nad hranicí jasno.
+// month = "YYYY-MM"; aktuální měsíc se obnovuje po 10 minutách. null = nic nenačítat.
+export function useBrightnessMonth(month, isCurrent) {
+  const { data, error, isLoading } = useSWR(
+    month ? `/api/brightness-days?month=${month}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 600000,
+      refreshInterval: isCurrent ? 600000 : 0,
+    }
+  );
+
+  return {
+    monthInfo: data?.error ? undefined : data,
+    isLoading,
+    isError: !!error || !!data?.error,
+  };
+}
+
 // Hook pro referenční venkovní teplotu z čidla kotle Viessmann (projekt p100)
 export function useReferenceTemp() {
   const { data, error, isLoading } = useSWR('/api/reference-temp', fetcher, {

@@ -8,6 +8,7 @@ Kromě `/api/collect` jsou všechny `GET` a bez autentizace. Časy z DB jsou v U
 |----------|-------|
 | [`GET /api/current`](#get-apicurrent) | Poslední měření |
 | [`GET /api/history`](#get-apihistory) | Historie pro grafy |
+| [`GET /api/brightness-days`](#get-apibrightness-days) | Kalendář jasu: dny s daty a hodiny jasna |
 | [`GET /api/stats`](#get-apistats) | Dnešní min/max a minuty srážek |
 | [`GET /api/reference-temp`](#get-apireference-temp) | Referenční teplota z kotle Viessmann |
 | [`GET /api/forecast`](#get-apiforecast-a-get-apiforecast-yr) | Předpověď Open-Meteo |
@@ -68,6 +69,33 @@ do 24 h `24h`, raw/hourly `7d`, daily `30d`.
   ]
 }
 ```
+
+## GET /api/brightness-days
+
+Podklad pro kalendář v okně „Průběh jasu“. Vrací dny jednoho pražského kalendářního měsíce,
+pro které jsou v `measurements` data jasu, a kolik minut byl jas nad hranicí jasno.
+
+| Parametr | Popis |
+|----------|-------|
+| `month` | `YYYY-MM`, výchozí je aktuální měsíc. Jiný formát vrací `400`. |
+
+Hranice jasno je 70 % jasu jasné oblohy při dané výšce Slunce (`clearThresholdLux` v
+`src/lib/utils.js`). Pod 3° nad obzorem se nevyhodnocuje. Minuty se počítají stejně jako souhrn
+v okně: každé měření platí do dalšího, nejvýš 10 minut. Endpoint čte minutová data za celý měsíc
+(v létě ~26 000 řádků, ~1 s). Proto má CDN cache: uplynulé měsíce 1 den, aktuální měsíc 10 minut.
+
+```json
+{
+  "month": "2026-11",
+  "firstDay": "2026-03-31",
+  "today": "2026-11-13",
+  "days": {
+    "2026-11-08": { "samples": 1439, "clearMinutes": 336 }
+  }
+}
+```
+
+`firstDay` je první den v DB (dál zpět kalendář nepustí). Dny bez dat v `days` chybí.
 
 ## GET /api/stats
 

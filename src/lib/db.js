@@ -131,6 +131,40 @@ export async function getDailyAggregates({ from, to }) {
   return rows;
 }
 
+// Měření jasu nad `minLux` pro kalendář jasna: t = epoch s, b = lux,
+// s = sekundy do dalšího měření (počítá se před filtrem jasu; null u posledního)
+export async function getBrightnessSamples({ from, to, minLux }) {
+  const { rows } = await execute(
+    `SELECT t, b, s FROM (
+       SELECT CAST(strftime('%s', timestamp) AS INTEGER) AS t,
+              brightness AS b,
+              CAST(strftime('%s', LEAD(timestamp) OVER (ORDER BY timestamp)) AS INTEGER)
+                - CAST(strftime('%s', timestamp) AS INTEGER) AS s
+       FROM measurements
+       WHERE timestamp >= ? AND timestamp < ? AND brightness IS NOT NULL
+     ) WHERE b >= ?`,
+    [from, to, minLux]
+  );
+  return rows;
+}
+
+// Počet měření jasu po hodinách (UTC "YYYY-MM-DD HH") — podle toho se pozná, které dny mají data
+export async function getBrightnessCountsByHour({ from, to }) {
+  const { rows } = await execute(
+    `SELECT substr(timestamp, 1, 13) AS hour, COUNT(*) AS n
+     FROM measurements
+     WHERE timestamp >= ? AND timestamp < ? AND brightness IS NOT NULL
+     GROUP BY hour`,
+    [from, to]
+  );
+  return rows;
+}
+
+export async function getFirstMeasurementTime() {
+  const { rows } = await execute('SELECT MIN(timestamp) AS first FROM measurements');
+  return rows[0]?.first || null;
+}
+
 export async function computeHourlyAggregate(hourStr) {
   const nextHour = new Date(new Date(hourStr).getTime() + 3600000)
     .toISOString()

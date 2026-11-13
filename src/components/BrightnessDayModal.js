@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ComposedChart,
@@ -13,8 +13,9 @@ import {
   ResponsiveContainer,
   ReferenceArea,
 } from 'recharts';
-import { Sun, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useDayHistory } from '@/hooks/useWeatherData';
+import { Sun, X, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { useDayHistory, useBrightnessMonth } from '@/hooks/useWeatherData';
+import BrightnessCalendar from './BrightnessCalendar';
 import {
   thresholdAt,
   pragueDay,
@@ -24,9 +25,12 @@ import {
   summarizeDay,
   formatDuration,
   formatClock,
+  dayKey,
+  daysBetween,
+  shiftDayKey,
 } from '@/lib/brightness';
 
-// Jak daleko do minulosti jdou minutová data (retence measurements)
+// Jak daleko do minulosti jdou minutová data (retence measurements), než známe první den v DB
 const MAX_DAYS_BACK = 365;
 const AMBER = '#f59e0b';
 const YELLOW = '#eab308';
@@ -51,17 +55,59 @@ function ChartTooltip({ active, payload }) {
 
 export default function BrightnessDayModal({ onClose }) {
   const [offset, setOffset] = useState(0);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const dateButtonRef = useRef(null);
   const day = useMemo(() => pragueDay(offset), [offset]);
   const axis = useMemo(() => daylightWindow(day), [day]);
   const isToday = offset === 0;
   const { history, isLoading, isError } = useDayHistory(day.start, day.end, isToday);
 
-  // Zavření klávesou Esc + zamčení scrollu stránky pod oknem
+  // Dny s daty v měsíci zobrazeného dne — šipky přes ně přeskakují dny bez dat
+  const todayKey = dayKey(Date.now());
+  const selectedKey = shiftDayKey(todayKey, offset);
+  const { monthInfo } = useBrightnessMonth(selectedKey.slice(0, 7), selectedKey.slice(0, 7) === todayKey.slice(0, 7));
+  const [firstDay, setFirstDay] = useState(null);
+  useEffect(() => {
+    if (monthInfo?.firstDay) setFirstDay(monthInfo.firstDay);
+  }, [monthInfo?.firstDay]);
+  const minOffset = firstDay ? Math.min(daysBetween(todayKey, firstDay), 0) : -MAX_DAYS_BACK;
+
+  // Posun o den (dir = ±1). V rámci načteného měsíce přeskočí dny, pro které nemáme data.
+  const step = useCallback(
+    (dir) =>
+      setOffset((o) => {
+        let next = o + dir;
+        while (next > minOffset && next < 0) {
+          const key = shiftDayKey(todayKey, next);
+          if (!monthInfo || key.slice(0, 7) !== monthInfo.month || monthInfo.days[key]) break;
+          next += dir;
+        }
+        return Math.min(Math.max(next, minOffset), 0);
+      }),
+    [minOffset, monthInfo, todayKey]
+  );
+  const closeCalendar = useCallback(() => setCalendarOpen(false), []);
+  const pickDay = useCallback(
+    (key) => {
+      setOffset(daysBetween(todayKey, key));
+      setCalendarOpen(false);
+    },
+    [todayKey]
+  );
+
+  // Klávesy: Esc zavře kalendář, pak okno; šipky listují dny (ne při otevřeném kalendáři)
+  const keyState = useRef({});
+  keyState.current = { calendarOpen, step, onClose };
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft') setOffset((o) => Math.max(o - 1, -MAX_DAYS_BACK));
-      if (e.key === 'ArrowRight') setOffset((o) => Math.min(o + 1, 0));
+      const k = keyState.current;
+      if (e.key === 'Escape') {
+        if (k.calendarOpen) setCalendarOpen(false);
+        else k.onClose();
+      }
+      if (k.calendarOpen) return;
+      if (e.key === 'ArrowLeft') k.step(-1);
+      if (e.key === 'ArrowRight') k.step(1);
     };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -70,7 +116,7 @@ export default function BrightnessDayModal({ onClose }) {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose]);
+  }, []);
 
   const points = useMemo(
     () =>
@@ -123,20 +169,29 @@ export default function BrightnessDayModal({ onClose }) {
             <Sun className="h-5 w-5 text-yellow-500" />
             Průběh jasu
           </h2>
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="relative flex items-center gap-2 ml-auto">
             <button
-              onClick={() => setOffset((o) => o - 1)}
-              disabled={offset <= -MAX_DAYS_BACK}
+              onClick={() => step(-1)}
+              disabled={offset <= minOffset}
               aria-label="Předchozí den"
               className="p-1.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[8.5rem] text-center text-sm font-medium text-gray-900 dark:text-white">
-              {formatDayLabel(day.start, offset)}
-            </span>
             <button
-              onClick={() => setOffset((o) => o + 1)}
+              ref={dateButtonRef}
+              onClick={() => setCalendarOpen((v) => !v)}
+              aria-label="Vybrat den v kalendáři"
+              aria-expanded={calendarOpen}
+              className={`min-w-[8.5rem] flex items-center justify-center gap-1.5 px-2 py-1 rounded-md text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                calendarOpen ? 'bg-gray-100 dark:bg-gray-700' : ''
+              }`}
+            >
+              <CalendarDays className="h-4 w-4 text-gray-400" />
+              {formatDayLabel(day.start, offset)}
+            </button>
+            <button
+              onClick={() => step(1)}
               disabled={isToday}
               aria-label="Další den"
               className="p-1.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40"
@@ -150,6 +205,16 @@ export default function BrightnessDayModal({ onClose }) {
             >
               <X className="h-5 w-5" />
             </button>
+            {calendarOpen && (
+              <BrightnessCalendar
+                selectedKey={selectedKey}
+                todayKey={todayKey}
+                firstDay={firstDay}
+                onSelect={pickDay}
+                onClose={closeCalendar}
+                anchorRef={dateButtonRef}
+              />
+            )}
           </div>
         </div>
 

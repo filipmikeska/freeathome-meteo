@@ -17,6 +17,7 @@ Záložka **Počasí**
 - Klik na dlaždici **Jas** otevře průběh jasu během dne s hranicí „jasno“ podle stejného modelu.
   Hranice je křivka (ráno a v zimě nižší) a okno ukazuje, jak dlouho byl jas nad ní.
   Slouží k odhadu, jestli fotovoltaika ohřála vodu. Šipkami lze listovat do minulých dnů.
+  Klik na datum otevře kalendář. Vybrat jde jen den s daty a u každého dne jsou hodiny nad hranicí jasno.
 - Interaktivní grafy: 24 h, 7 dní, 30 dní a vlastní rozsah. U agregovaných dat se zobrazuje pás min–max.
 - Východ a západ Slunce, fáze Měsíce. Fáze Měsíce se počítá lokálně přes `astronomy-engine`.
 

@@ -16,6 +16,26 @@ const MAX_SAMPLE_MIN = 10;
 const MIN = 60000;
 const observer = new Astronomy.Observer(LAT, LON, 200);
 
+const pad = (n) => String(n).padStart(2, '0');
+
+// Klíč pražského dne "YYYY-MM-DD" pro okamžik (Date nebo epoch ms)
+export function dayKey(t) {
+  const p = pragueParts(new Date(t));
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+}
+
+// Posun v dnech mezi dvěma klíči dne (b − a)
+export function daysBetween(a, b) {
+  const utc = (k) => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10));
+  return Math.round((utc(b) - utc(a)) / 86400000);
+}
+
+// Klíč dne posunutý o `n` dní
+export function shiftDayKey(key, n) {
+  const d = new Date(Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, +key.slice(8, 10) + n));
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
 // Pražský den posunutý o `offset` dní od dneška → { start, end } jako Date
 export function pragueDay(offset = 0, now = new Date()) {
   const p = pragueParts(now);
@@ -89,6 +109,26 @@ export function summarizeDay(points, threshold = thresholdAt) {
     listedIntervals: intervals.filter((iv) => iv.end - iv.start >= MIN_LISTED_MIN * MIN),
     max,
   };
+}
+
+// Nejnižší možná hranice jasno (Slunce 3° nad obzorem) je ~3,4 klx — tmavší měření nás nezajímají
+export const MIN_CANDIDATE_LUX = 3000;
+
+// Minuty nad hranicí jasno po pražských dnech, stejně jako summarizeDay.
+// rows: [{ t: epoch s, b: lux, s: s do dalšího měření | null }] z getBrightnessSamples
+export function clearMinutesByDay(rows) {
+  const ms = {};
+  for (const r of rows) {
+    const t = r.t * 1000;
+    const thr = thresholdAt(t);
+    if (thr == null || r.b < thr) continue;
+    const span = Math.min(r.s != null ? r.s * 1000 : MIN, MAX_SAMPLE_MIN * MIN);
+    const key = dayKey(t);
+    ms[key] = (ms[key] || 0) + span;
+  }
+  const out = {};
+  for (const [key, v] of Object.entries(ms)) out[key] = Math.round(v / MIN);
+  return out;
 }
 
 export function formatDuration(minutes) {
