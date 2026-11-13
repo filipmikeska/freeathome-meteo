@@ -1,76 +1,92 @@
-# Navod na nasazeni
+# Nasazení
 
-## 1. Turso databaze
+## Běžný deploy (změna kódu webu)
 
-### Instalace CLI
+Vercel **nemá zapnutý auto-deploy z gitu**. Po commitu je potřeba nasadit ručně:
+
 ```bash
-# Linux/macOS
-curl -sSfL https://get.tur.so/install.sh | bash
-
-# Windows (via scoop)
-scoop install turso-cli
+git push
+npx vercel --prod
 ```
 
-### Vytvoreni databaze
+Build trvá cca 30–40 s. Výsledek ověříte na https://meteopacetluky.cz.
+
+Změny v `rpi/` se na Vercel nenasazují. Na Raspberry Pi je potřeba udělat `git pull` a restartovat
+službu, viz [rpi-setup-runbook.md](rpi-setup-runbook.md#2-update-kódu-po-změně-v-githubu).
+
+## CI
+
+`.github/workflows/test.yml` spouští `npm run lint` a `npm run build` při pushi do `main` a u pull requestů.
+CI nic nenasazuje.
+
+---
+
+## Nastavení od nuly
+
+### 1. Turso databáze
+
 ```bash
+# Instalace CLI: Linux/macOS
+curl -sSfL https://get.tur.so/install.sh | bash
+# Windows (scoop)
+scoop install turso-cli
+
 turso auth login
 turso db create freeathome-meteo
-turso db show freeathome-meteo --url    # → libsql://freeathome-meteo-xxx.turso.io
+turso db show freeathome-meteo --url     # → libsql://freeathome-meteo-xxx.turso.io
 turso db tokens create freeathome-meteo  # → eyJhbGciOi...
 ```
 
-### Migrace
+Migrace (idempotentní, `CREATE … IF NOT EXISTS`):
+
 ```bash
-export TURSO_DATABASE_URL=libsql://freeathome-meteo-xxx.turso.io
-export TURSO_AUTH_TOKEN=eyJhbGciOi...
+# hodnoty v .env.local, nebo jako env proměnné
 npm run migrate
 ```
 
-## 2. Vercel
+### 2. Vercel
 
-1. Vytvorte ucet na [vercel.com](https://vercel.com) (propojte s GitHub)
-2. Importujte repozitar `freeathome-meteo`
-3. Vercel automaticky detekuje Next.js
+1. Importujte repozitář na [vercel.com](https://vercel.com). Next.js se detekuje automaticky.
+2. Lokálně propojte projekt přes `npx vercel link`.
+3. Nastavte env proměnné (Project → Settings → Environment Variables):
 
-### Environment promenne na Vercelu
+| Proměnná | Povinná | Hodnota |
+|----------|---------|---------|
+| `TURSO_DATABASE_URL` | ano | `libsql://freeathome-meteo-xxx.turso.io` |
+| `TURSO_AUTH_TOKEN` | ano | Token z Turso CLI |
+| `P100_DATABASE_URL` | ne | Turso DB projektu p100 (referenční teplota z kotle) |
+| `P100_AUTH_TOKEN` | ne | Token k DB p100 |
+| `COLLECT_API_KEY` | ne | Náhodný řetězec (`openssl rand -hex 32`), jen pokud se používá `POST /api/collect` |
+| `NEXT_PUBLIC_POLL_INTERVAL` | ne | `60000` |
 
-Jdete do: Project → Settings → Environment Variables
+4. Doména `meteopacetluky.cz` je nastavená ve Vercel → Domains.
 
-| Promenna | Hodnota |
-|----------|---------|
-| `TURSO_DATABASE_URL` | `libsql://freeathome-meteo-xxx.turso.io` |
-| `TURSO_AUTH_TOKEN` | Token z Turso CLI |
-| `COLLECT_API_KEY` | Nahodny retezec (napr. `openssl rand -hex 32`) |
-| `NEXT_PUBLIC_POLL_INTERVAL` | `60000` (volitelne) |
+### 3. Sběr dat
 
-## 3. GitHub Actions — sber dat
+- **Primární:** Raspberry Pi, viz [rpi-setup-runbook.md](rpi-setup-runbook.md).
+- **Záložní:** GitHub Actions, viz níže. Potřebuje přístup k ABB Cloud API, viz [abb-api-setup.md](abb-api-setup.md).
 
-### Nastaveni Secrets
+#### GitHub Actions secrets
 
-V GitHub repozitari → Settings → Secrets and variables → Actions → New repository secret:
+GitHub → Settings → Secrets and variables → Actions:
 
-| Secret | Kde ziskat |
-|--------|-----------|
-| `ABB_SYSAP_UUID` | `8cf4903d-885c-43ef-9fea-bba1167b5928` |
+| Secret | Hodnota |
+|--------|---------|
+| `ABB_SYSAP_UUID` | UUID SysAPu (viz `.env.example`) |
 | `ABB_DEVICE_ID` | `7EB10000329B` |
-| `ABB_CLOUD_TOKEN` | ABB Developer Portal → OAuth2 |
-| `ABB_CLOUD_SUBSCRIPTION_KEY` | ABB Developer Portal → Subscriptions |
+| `ABB_CLOUD_TOKEN` | OAuth2 Bearer token z ABB Developer Portalu |
+| `ABB_CLOUD_SUBSCRIPTION_KEY` | Subscription key z ABB Developer Portalu |
 | `TURSO_DATABASE_URL` | Viz krok 1 |
 | `TURSO_AUTH_TOKEN` | Viz krok 1 |
 
-### Overeni
+Ověření: Actions → „Collect Weather Data“ → „Run workflow“. V logu má být „Stored directly to Turso DB“.
 
-Po nastaveni secrets jdete do Actions → "Collect Weather Data" → "Run workflow" (rucni spusteni).
-Zkontrolujte log — melo by se zobrazit "Stored directly to Turso DB".
+## Zátěž free tierů
 
-## 4. ABB Cloud API pristup
+| Služba | Odhad zátěže |
+|--------|--------------|
+| Vercel | Jednotky GB přenosu za měsíc |
+| Turso | ~1440 zápisů/den z RPi + ~144 ze záložního sběru. Každý zápis přepočítá hodinovou a denní agregaci (čte až ~1500 řádků). |
+| GitHub Actions | ~4300 běhů/měsíc. Pro veřejný repozitář jsou minuty zdarma. |
 
-Viz [abb-api-setup.md](abb-api-setup.md) pro detailni navod.
-
-## Spotrana free tieru
-
-| Sluzba | Limit | Nase spotreba |
-|--------|-------|---------------|
-| Vercel | 100GB bandwidth/mesic | ~1 GB |
-| Turso | 9 GB storage, 500M rows read | ~5M rows/mesic |
-| GitHub Actions | 2000 min/mesic | ~900 min (144 runu * ~1 min) |
+Aktuální limity free tierů ověřte na webech služeb, mění se.

@@ -1,18 +1,27 @@
 # Nastaveni ABB API
 
-## Lokalni API (pro vyvoj)
+| API | Kdo ho pouziva |
+|-----|----------------|
+| Lokalni (SysAP v LAN) | Raspberry Pi (`rpi/collect.mjs`, primarni sber), lokalni vyvoj a diagnostika |
+| Cloud | GitHub Actions (`scripts/collect-data.mjs`, zalozni sber) |
+
+Prepinani rezimu ve `scripts/collect-data.mjs` a `scripts/check-connection.mjs` dela `ABB_API_MODE` (`local` / `cloud`).
+`rpi/collect.mjs` pouziva vzdy lokalni API.
+
+## Lokalni API
 
 Lokalni API je dostupne primo na System Access Pointu ve vasi lokalni siti.
+IP SysAPu je `192.168.68.56`. Starsi dokumentace uvadela `.55`, pri problemech ji overte v routeru.
 
 ### Predpoklady
-- PC ve stejne siti jako SysAP (192.168.68.55)
+- PC ve stejne siti jako SysAP (192.168.68.56)
 - Ucet `installer` na SysAPu
 
 ### Otestovani
 ```bash
 # Windows/Linux — ignoruje self-signed certifikat
 curl -k -u installer:VASE_HESLO \
-  https://192.168.68.55/fhapi/v1/api/rest/datapoint/00000000-0000-0000-0000-000000000000/7EB10000329B.ch0002.odp0001
+  https://192.168.68.56/fhapi/v1/api/rest/datapoint/00000000-0000-0000-0000-000000000000/7EB10000329B.ch0002.odp0001
 ```
 
 Odpoved by mela vypadat:
@@ -24,7 +33,7 @@ Odpoved by mela vypadat:
 V `.env.local`:
 ```
 ABB_API_MODE=local
-ABB_LOCAL_HOST=192.168.68.55
+ABB_LOCAL_HOST=192.168.68.56
 ABB_LOCAL_USER=installer
 ABB_LOCAL_PASSWORD=vase_heslo
 ```
@@ -34,7 +43,9 @@ Pri spusteni skriptu s self-signed certifikatem:
 NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/check-connection.mjs
 ```
 
-## Cloud API (pro produkci)
+`rpi/collect.mjs` ma `NODE_TLS_REJECT_UNAUTHORIZED=0` nastavene primo v kodu, flag neni potreba.
+
+## Cloud API (zalozni sber)
 
 Cloud API je nutne pro GitHub Actions (neni pristup k lokalni siti).
 

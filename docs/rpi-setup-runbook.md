@@ -57,7 +57,7 @@ Kompletní postup nasazení daemonu `collect.mjs` na Raspberry Pi Zero 2W pro me
 4. **EDIT SETTINGS**:
    - Hostname: `raspberrypi`
    - User: `raspi` / `<silné heslo>`
-   - Wi-Fi: `Holly_100` / `123456654321` / country `CZ`
+   - Wi-Fi: `Holly_100` / `<heslo k Wi-Fi>` / country `CZ`
    - Locale: `Europe/Prague`, keyboard `cz`
    - SSH: enabled, password authentication
 5. **SAVE → YES** → flash (5–10 min)
@@ -105,7 +105,7 @@ cd ~/meteo/rpi
 cp .env.example .env
 nano .env
 # Hodnoty:
-#   ABB_LOCAL_PASSWORD=156423
+#   ABB_LOCAL_PASSWORD=<heslo účtu installer na SysAP>
 #   TURSO_DATABASE_URL=libsql://...   (z .env.local na PC)
 #   TURSO_AUTH_TOKEN=eyJ...           (z .env.local na PC)
 
@@ -144,7 +144,7 @@ sudo journalctl -u meteo-collect -f       # live logy
 tail -f /dev/shm/meteo.log                # debug log v RAM
 ```
 
-Web https://meteopacetluky.cz/api/current → `updatedAt` v posledních 2 minutách.
+Web https://meteopacetluky.cz/api/current → `timestamp` (UTC) v posledních 2 minutách.
 
 ---
 
@@ -250,6 +250,7 @@ a navíc systém zapisoval ~10 000×/den. Po našich optimalizacích bude zápis
 | `rpi/meteo-collect.service` | systemd unit (Restart=always, MemoryMax=128M) |
 | `rpi/install.sh` | Idempotentní instalátor pro celé RPi |
 | `rpi/.env.example` | Šablona konfigurace |
+| `rpi/loop.mjs` | Dočasný sběr z PC, když RPi nefunguje |
 
 ---
 
