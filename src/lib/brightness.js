@@ -2,10 +2,10 @@
 // Slouží hlavně k odhadu, kolik bylo slunce pro fotovoltaický ohřev vody.
 import * as Astronomy from 'astronomy-engine';
 import { LAT, LON, TZ, pragueParts, pragueMidnight } from './moon.js';
+import { clearThresholdLux } from './utils.js';
 
-// Hranice „jasno“ v luxech. Za jasného listopadového dne jas vrcholí kolem 55–80 klx,
-// za oblačného kolem 6–20 klx; v létě až ~117 klx.
-export const CLEAR_SKY_LUX = 40000;
+// Hranice „jasno“ není pevná: je to 70 % jasu jasné oblohy pro aktuální výšku Slunce
+// (clearThresholdLux v utils.js, stejný model jako u dlaždice Jas). Ráno a v zimě je nižší.
 
 // Úseky nad hranicí: mezery do 5 min se slučují, úseky pod 10 min se nevypisují
 const MERGE_GAP_MIN = 5;
@@ -55,9 +55,14 @@ export function parseDbTimestamp(ts) {
   return Date.parse(ts.replace(' ', 'T') + (ts.endsWith('Z') ? '' : 'Z'));
 }
 
+// Hranice „jasno“ v luxech pro okamžik t (epoch ms); null = Slunce příliš nízko
+export function thresholdAt(t) {
+  return clearThresholdLux(new Date(t));
+}
+
 // points: [{ t: epoch ms, lux }] seřazené podle času.
 // Vrací celkový čas nad hranicí, úseky k výpisu a maximum.
-export function summarizeDay(points, threshold = CLEAR_SKY_LUX) {
+export function summarizeDay(points, threshold = thresholdAt) {
   let totalMs = 0;
   const intervals = [];
   let max = null;
@@ -66,7 +71,8 @@ export function summarizeDay(points, threshold = CLEAR_SKY_LUX) {
     const p = points[i];
     if (p.lux == null) continue;
     if (!max || p.lux > max.lux) max = p;
-    if (p.lux < threshold) continue;
+    const thr = threshold(p.t);
+    if (thr == null || p.lux < thr) continue;
 
     const next = points[i + 1];
     const span = Math.min(next ? next.t - p.t : MIN, MAX_SAMPLE_MIN * MIN);

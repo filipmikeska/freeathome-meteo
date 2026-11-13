@@ -3,20 +3,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  AreaChart,
+  ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
   ReferenceArea,
 } from 'recharts';
 import { Sun, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useDayHistory } from '@/hooks/useWeatherData';
 import {
-  CLEAR_SKY_LUX,
+  thresholdAt,
   pragueDay,
   daylightWindow,
   formatDayLabel,
@@ -36,12 +36,15 @@ const klx = (lux) =>
 
 function ChartTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
-  const { t, lux } = payload[0].payload;
+  const { t, lux, thr } = payload[0].payload;
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 text-sm">
       <div className="text-xs text-gray-500 dark:text-gray-400">{formatClock(t)}</div>
       <div className="font-semibold text-gray-900 dark:text-white">{klx(lux)}</div>
-      {lux >= CLEAR_SKY_LUX && <div className="text-xs font-medium text-amber-500">nad hranicí jasno</div>}
+      {thr != null && (
+        <div className="text-xs text-gray-500 dark:text-gray-400">hranice jasno {klx(thr)}</div>
+      )}
+      {thr != null && lux >= thr && <div className="text-xs font-medium text-amber-500">nad hranicí jasno</div>}
     </div>
   );
 }
@@ -83,13 +86,18 @@ export default function BrightnessDayModal({ onClose }) {
     () =>
       points
         .filter((p) => p.t >= axis.from && p.t <= axis.to)
-        // `above` = pásmo mezi hranicí a křivkou, zvýrazní čas nad hranicí
-        .map((p) => ({ ...p, above: [CLEAR_SKY_LUX, Math.max(p.lux, CLEAR_SKY_LUX)] })),
+        .map((p) => {
+          // Hranice se mění s výškou Slunce; null = Slunce příliš nízko, čára se nekreslí
+          const thr = thresholdAt(p.t);
+          // `above` = pásmo mezi hranicí a křivkou, zvýrazní čas nad hranicí
+          return { ...p, thr, above: thr == null ? null : [thr, Math.max(p.lux, thr)] };
+        }),
     [points, axis]
   );
+  const maxThr = chartData.reduce((m, p) => Math.max(m, p.thr || 0), 0);
 
-  // Osa Y: aspoň do 60 klx, ať je hranice vždy vidět; jinak po 20 klx nad maximum
-  const yMax = Math.max(60000, Math.ceil((summary.max?.lux || 0) / 20000) * 20000);
+  // Osa Y: aspoň do 60 klx; jinak po 20 klx nad maximum jasu i hranice
+  const yMax = Math.max(60000, Math.ceil(Math.max(summary.max?.lux || 0, maxThr) / 20000) * 20000);
   const yTicks = [];
   for (let v = 0; v <= yMax; v += 20000) yTicks.push(v);
   const xTicks = [];
@@ -155,7 +163,7 @@ export default function BrightnessDayModal({ onClose }) {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 18, right: 8, left: 0, bottom: 0 }}>
+              <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="brightnessFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={YELLOW} stopOpacity={0.35} />
@@ -201,19 +209,16 @@ export default function BrightnessDayModal({ onClose }) {
                   activeDot={false}
                   isAnimationActive={false}
                 />
-                <ReferenceLine
-                  y={CLEAR_SKY_LUX}
+                {/* Hranice jasno: 70 % jasu jasné oblohy, mění se během dne */}
+                <Line
+                  type="monotone"
+                  dataKey="thr"
                   stroke={AMBER}
                   strokeWidth={1.5}
                   strokeDasharray="6 4"
-                  label={{
-                    value: `hranice jasno · ${CLEAR_SKY_LUX / 1000} klx`,
-                    // vlevo: ráno je jas nízko, popisek nepřekrývá křivku
-                    position: 'insideTopLeft',
-                    fill: AMBER,
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
                 />
                 {/* Proužky pod osou: úseky nad hranicí */}
                 {summary.intervals.map((iv) => (
@@ -228,10 +233,20 @@ export default function BrightnessDayModal({ onClose }) {
                     stroke="none"
                   />
                 ))}
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </div>
+
+        {/* Legenda k čárkované křivce */}
+        {hasData && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <svg width="22" height="6" aria-hidden="true">
+              <line x1="0" y1="3" x2="22" y2="3" stroke={AMBER} strokeWidth="1.5" strokeDasharray="6 4" />
+            </svg>
+            hranice jasno: 70 % jasu za jasné oblohy při dané výšce Slunce
+          </div>
+        )}
 
         {/* Souhrn */}
         {hasData && (

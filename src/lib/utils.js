@@ -109,66 +109,68 @@ const LAT = 49.3794;
 const LON = 17.5658;
 const DEG = Math.PI / 180;
 
-// Měsíční špičky jasu při jasné obloze (klx) — zdroj: ČHMÚ, PVGIS
-const PEAK_KLX = [0, 30, 42, 66, 84, 102, 114, 120, 108, 84, 54, 34, 24];
+// Jas při jasné obloze podle výšky Slunce: [výška °, klx].
+// Empirická obálka z vlastních měření (95. percentil hodinových maxim, duben–listopad 2026).
+// Nad ~50° už čidlo saturuje kolem 115–117 klx.
+const CLEAR_SKY_KLX = [
+  [0, 0], [2, 3.3], [6, 9.4], [10, 31.5], [14, 42.4], [18, 58.7], [22, 71.6], [26, 79.6],
+  [30, 87.6], [34, 97.3], [38, 100.8], [42, 108.5], [46, 110.8], [50, 113], [58, 114.9],
+];
 
-// Výška slunce nad obzorem (stupně)
-function getSolarElevation(date) {
-  const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
-  const hourUTC = date.getUTCHours() + date.getUTCMinutes() / 60;
+// Hranice „Jasno“: aspoň 70 % jasu jasné oblohy. Pod 3° nad obzorem se jasno nevyhodnocuje.
+export const CLEAR_RATIO = 0.7;
+const MIN_CLEAR_ELEVATION = 3;
 
-  // Deklinace slunce
-  const declination = -23.45 * Math.cos(DEG * (360 / 365) * (dayOfYear + 10));
+// Výška Slunce nad obzorem (stupně), bez refrakce. Vzorce NOAA vč. časové rovnice,
+// odchylka od přesného výpočtu do ~0,2°.
+export function getSolarElevation(date) {
+  const g = ((2 * Math.PI) / 365) * ((date.getTime() - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000);
+  const declination =
+    0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) +
+    0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  // Časová rovnice v minutách
+  const eot =
+    229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) -
+      0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const minutesUTC = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
+  const hourAngle = ((minutesUTC + eot + 4 * LON) / 4 - 180) * DEG;
 
-  // Hodinový úhel (solar hour angle)
-  const solarNoonUTC = 12 - LON / 15;
-  const hourAngle = (hourUTC - solarNoonUTC) * 15;
-
-  // Výška slunce
   const sinElev =
-    Math.sin(LAT * DEG) * Math.sin(declination * DEG) +
-    Math.cos(LAT * DEG) * Math.cos(declination * DEG) * Math.cos(hourAngle * DEG);
-
+    Math.sin(LAT * DEG) * Math.sin(declination) +
+    Math.cos(LAT * DEG) * Math.cos(declination) * Math.cos(hourAngle);
   return Math.asin(sinElev) / DEG;
 }
 
-// Maximální výška slunce v poledne pro daný den
-function getMaxElevation(date) {
-  const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
-  const declination = -23.45 * Math.cos(DEG * (360 / 365) * (dayOfYear + 10));
-  return 90 - LAT + declination;
-}
-
-// Teoretický max jasu pro daný okamžik při jasné obloze (klx)
-function getTheoreticalMax(date) {
+// Jas při jasné obloze pro daný okamžik (lux), lineární interpolace v tabulce
+export function clearSkyLux(date) {
   const elev = getSolarElevation(date);
   if (elev <= 0) return 0;
-
-  const month = date.getMonth() + 1;
-  const peak = PEAK_KLX[month];
-  const maxElev = getMaxElevation(date);
-
-  if (maxElev <= 0) return 0;
-  return peak * Math.sin(elev * DEG) / Math.sin(maxElev * DEG);
+  for (let i = 1; i < CLEAR_SKY_KLX.length; i++) {
+    const [b, vb] = CLEAR_SKY_KLX[i];
+    if (elev <= b) {
+      const [a, va] = CLEAR_SKY_KLX[i - 1];
+      return (va + ((vb - va) * (elev - a)) / (b - a)) * 1000;
+    }
+  }
+  return CLEAR_SKY_KLX[CLEAR_SKY_KLX.length - 1][1] * 1000;
 }
 
-// Zjistí stav oblohy z naměřeného jasu
+// Hranice „Jasno“ v luxech pro daný okamžik; null, když je Slunce příliš nízko
+export function clearThresholdLux(date) {
+  if (getSolarElevation(date) < MIN_CLEAR_ELEVATION) return null;
+  return CLEAR_RATIO * clearSkyLux(date);
+}
+
+// Zjistí stav oblohy z naměřeného jasu (poměr k jasu jasné oblohy ve stejné výšce Slunce)
 export function getSkyCondition(brightnessLux, date = new Date()) {
-  const elev = getSolarElevation(date);
-
-  if (elev <= 0) {
+  const clear = clearSkyLux(date);
+  if (clear <= 0) {
     return { label: 'Noc', icon: 'night', isDay: false, kt: 0 };
   }
 
-  const theorMax = getTheoreticalMax(date);
-  if (theorMax <= 0) {
-    return { label: 'Noc', icon: 'night', isDay: false, kt: 0 };
-  }
+  const kt = Math.min(Number(brightnessLux) / clear, 1.2);
 
-  const measuredKlx = Number(brightnessLux) / 1000;
-  const kt = Math.min(measuredKlx / theorMax, 1.2);
-
-  if (kt > 0.7) return { label: 'Jasno', icon: 'clear', isDay: true, kt };
+  if (kt >= CLEAR_RATIO) return { label: 'Jasno', icon: 'clear', isDay: true, kt };
   if (kt > 0.4) return { label: 'Polojasno', icon: 'partlyCloudy', isDay: true, kt };
   if (kt > 0.15) return { label: 'Oblačno', icon: 'cloudy', isDay: true, kt };
   return { label: 'Zataženo', icon: 'overcast', isDay: true, kt };

@@ -11,7 +11,11 @@ Záložka **Počasí**
 - Aktuální hodnoty: teplota, rychlost větru, jas (lux), srážky. Obnovují se každých 60 s.
 - Referenční venkovní teplota z čidla kotle Viessmann (volitelná, z jiné databáze).
 - Dnešní minima a maxima podle pražského dne (klik na dlaždici).
-- Klik na dlaždici **Jas** otevře průběh jasu během dne s hranicí „jasno“ (40 klx) a časem nad ní.
+- Stav oblohy na dlaždici **Jas** (Jasno / Polojasno / Oblačno / Zataženo) porovnává naměřený jas
+  s jasem jasné oblohy při aktuální výšce Slunce. Model jasné oblohy vychází z vlastních měření
+  (`clearSkyLux` v `src/lib/utils.js`); „Jasno“ znamená aspoň 70 % jasu jasné oblohy.
+- Klik na dlaždici **Jas** otevře průběh jasu během dne s hranicí „jasno“ podle stejného modelu.
+  Hranice je křivka (ráno a v zimě nižší) a okno ukazuje, jak dlouho byl jas nad ní.
   Slouží k odhadu, jestli fotovoltaika ohřála vodu. Šipkami lze listovat do minulých dnů.
 - Interaktivní grafy: 24 h, 7 dní, 30 dní a vlastní rozsah. U agregovaných dat se zobrazuje pás min–max.
 - Východ a západ Slunce, fáze Měsíce. Fáze Měsíce se počítá lokálně přes `astronomy-engine`.
