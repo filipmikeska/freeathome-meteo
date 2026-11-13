@@ -61,6 +61,24 @@ export function useBrightnessMonth(month, isCurrent) {
   };
 }
 
+// Hook pro minuty jasna za víc měsíců najednou (graf Historie měření u delších rozsahů).
+// months = ["YYYY-MM", …]; vrací sloučené `days` ze všech měsíců.
+const monthsFetcher = (key) =>
+  Promise.all(
+    key.split(',').map((m) => fetch(`/api/brightness-days?month=${m}`).then((r) => r.json()))
+  ).then((list) => {
+    if (list.some((x) => x.error)) throw new Error('brightness-days failed');
+    return Object.assign({}, ...list.map((x) => x.days));
+  });
+
+export function useBrightnessDays(months) {
+  const { data, error, isLoading } = useSWR(months?.length ? months.join(',') : null, monthsFetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 600000,
+  });
+  return { days: data, isLoading, isError: !!error };
+}
+
 // Hook pro referenční venkovní teplotu z čidla kotle Viessmann (projekt p100)
 export function useReferenceTemp() {
   const { data, error, isLoading } = useSWR('/api/reference-temp', fetcher, {

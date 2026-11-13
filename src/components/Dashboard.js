@@ -203,6 +203,9 @@ export default function Dashboard() {
             <WeatherChart
               data={history?.data}
               range={history?.range ?? range}
+              resolution={history?.resolution}
+              from={history?.from}
+              to={history?.to}
               isLoading={historyLoading}
             />
           </section>

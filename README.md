@@ -19,6 +19,7 @@ Záložka **Počasí**
   Slouží k odhadu, jestli fotovoltaika ohřála vodu. Šipkami lze listovat do minulých dnů.
   Klik na datum otevře kalendář. Vybrat jde jen den s daty a u každého dne jsou hodiny nad hranicí jasno.
 - Interaktivní grafy: 24 h, 7 dní, 30 dní a vlastní rozsah. U agregovaných dat se zobrazuje pás min–max.
+  U jasu graf ukazuje hranici „jasno“ (u 24 h a 7 dní) a celkový čas nad ní za zobrazené období.
 - Východ a západ Slunce, fáze Měsíce. Fáze Měsíce se počítá lokálně přes `astronomy-engine`.
 
 Záložka **Předpověď**

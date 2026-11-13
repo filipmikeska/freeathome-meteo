@@ -2,19 +2,30 @@
 
 import { useState } from 'react';
 import {
-  LineChart,
+  ComposedChart,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
-  AreaChart,
   Area,
 } from 'recharts';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { formatChartTime, formatTooltipTime } from '@/lib/utils';
+import {
+  thresholdAt,
+  summarizeDay,
+  parseDbTimestamp,
+  formatDuration,
+  formatClock,
+  dayKey,
+  shiftDayKey,
+  daysBetween,
+} from '@/lib/brightness';
+import { useBrightnessDays } from '@/hooks/useWeatherData';
+
+const AMBER = '#f59e0b';
 
 const METRICS = [
   {
@@ -39,6 +50,26 @@ const METRICS = [
     domain: [0, 'auto'],
   },
 ];
+
+// Celé pražské dny v rozsahu from–to (DB časy UTC). Začíná-li rozsah uprostřed dne, ten den vynechá.
+function fullDays(from, to) {
+  if (!from || !to) return null;
+  const f = parseDbTimestamp(from);
+  const t = parseDbTimestamp(to);
+  let first = dayKey(f);
+  if (dayKey(f - 1) === first) first = shiftDayKey(first, 1);
+  const last = dayKey(t - 1);
+  if (first > last) return null;
+  const months = [];
+  for (let m = first.slice(0, 7); m <= last.slice(0, 7); ) {
+    months.push(m);
+    const d = new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 1));
+    m = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+  return { first, last, months };
+}
+
+const shortDate = (key) => `${+key.slice(8, 10)}. ${+key.slice(5, 7)}.`;
 
 // Mapování klíčů metrik na názvy min/max sloupců v agregacích
 // Pokud agregace nemá dedikovaný min/max sloupec, padá se na raw hodnotu.
@@ -85,6 +116,16 @@ function CustomTooltip({ active, payload, label, range }) {
         {formatTooltipTime(label)}
       </p>
       {payload.map((entry) => {
+        // Pásmo nad hranicí jasno je jen zvýraznění, hodnotu nemá
+        if (entry.dataKey === 'brightnessAbove') return null;
+        if (entry.dataKey === 'brightnessThr') {
+          if (entry.value == null) return null;
+          return (
+            <p key={entry.dataKey} className="text-sm text-amber-500">
+              Hranice jasno: <span className="font-semibold">{Math.round(entry.value).toLocaleString('cs-CZ')}</span> lux
+            </p>
+          );
+        }
         // Range (tempRange) je pole [min, max] — zobrazíme dohromady
         if (entry.dataKey === 'tempRange') {
           if (!Array.isArray(entry.value)) return null;
@@ -109,8 +150,15 @@ function CustomTooltip({ active, payload, label, range }) {
   );
 }
 
-export default function WeatherChart({ data, range, isLoading }) {
+export default function WeatherChart({ data, range, resolution, from, to, isLoading }) {
   const [activeMetrics, setActiveMetrics] = useState(['temperature']);
+
+  // Jas: hranice jasno (stejná jako v okně Průběh jasu) a čas nad ní.
+  // U raw dat se počítá přímo z měření, u agregací se sečtou celé dny z /api/brightness-days.
+  const brightnessOn = activeMetrics.includes('brightness');
+  const isRaw = resolution === 'raw' || (!resolution && !data?.some((d) => d.tempMax != null));
+  const span = brightnessOn && !isRaw && resolution ? fullDays(from, to) : null;
+  const { days: clearDays, isLoading: clearDaysLoading } = useBrightnessDays(span?.months);
 
   const toggleMetric = (key) => {
     setActiveMetrics((prev) => {
@@ -148,9 +196,23 @@ export default function WeatherChart({ data, range, isLoading }) {
   // Pro agregace zobrazujeme MAX hodnoty (ne průměr), aby graf odpovídal
   // reálným extrémům. U raw 24h dat zůstávají jednotlivá měření.
   // U teploty navíc připravujeme `tempRange = [min, max]` pro pásmo pod křivkou.
-  const chartData = data.map((item) => {
-    if (!isAggregated) return { ...item };
+  // Křivka hranice jen u raw a hodinových dat; denní maximum s ní porovnat nejde
+  const showClearCurve = brightnessOn && resolution !== 'daily';
+  const withThreshold = (row, lux) => {
+    if (!showClearCurve || lux == null) return row;
+    // Hodinová agregace: hranice uprostřed hodiny
+    const t = parseDbTimestamp(row.timestamp) + (isAggregated ? 30 * 60000 : 0);
+    const thr = thresholdAt(t);
     return {
+      ...row,
+      brightnessThr: thr,
+      brightnessAbove: thr == null ? null : [thr, Math.max(Number(lux), thr)],
+    };
+  };
+
+  const chartData = data.map((item) => {
+    if (!isAggregated) return withThreshold({ ...item }, item.brightness);
+    return withThreshold({
       ...item,
       temperature: item.tempMax ?? item.temperature,
       temperatureMin: item.tempMin ?? item.temperature,
@@ -160,14 +222,44 @@ export default function WeatherChart({ data, range, isLoading }) {
           : undefined,
       brightness: item.brightnessMax ?? item.brightness,
       windSpeed: item.windMax ?? item.windSpeed,
-    };
+    }, item.brightnessMax ?? item.brightness);
   });
+
+  // Souhrn času nad hranicí jasno
+  let clearSummary = null;
+  if (brightnessOn && isRaw) {
+    const points = data
+      .filter((d) => d.brightness != null)
+      .map((d) => ({ t: parseDbTimestamp(d.timestamp), lux: Number(d.brightness) }));
+    const s = summarizeDay(points);
+    clearSummary = {
+      total: formatDuration(s.totalMinutes),
+      detail: s.listedIntervals.map((iv) => `${formatClock(iv.start)}–${formatClock(iv.end)}`).join(' · '),
+    };
+  } else if (span && clearDays) {
+    let minutes = 0;
+    let count = 0;
+    for (let k = span.first; k <= span.last; k = shiftDayKey(k, 1)) {
+      if (!clearDays[k]) continue;
+      minutes += clearDays[k].clearMinutes;
+      count++;
+    }
+    const n = daysBetween(span.first, span.last) + 1;
+    clearSummary = {
+      total: formatDuration(minutes),
+      detail: `${shortDate(span.first)}–${shortDate(span.last)} (${n} ${n === 1 ? 'den' : n < 5 ? 'dny' : 'dní'})${
+        count ? ` · průměr ${formatDuration(Math.round(minutes / count))} za den` : ''
+      }`,
+    };
+  } else if (span && clearDaysLoading) {
+    clearSummary = { total: '…', detail: '' };
+  }
 
   const showTempRange = isAggregated && activeMetrics.includes('temperature');
 
-  // Pokud je aktivní jen 1 metrika, zobrazíme area chart
+  // Pokud je aktivní jen 1 metrika, zobrazíme plochu pod křivkou
   const showArea = activeMetrics.length === 1;
-  const ChartComponent = showArea ? AreaChart : LineChart;
+  const ChartComponent = ComposedChart;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
@@ -265,6 +357,34 @@ export default function WeatherChart({ data, range, isLoading }) {
             );
           })}
 
+          {/* Hranice jasno a pásmo nad ní (jako v okně Průběh jasu) */}
+          {showClearCurve && (
+            <Area
+              type="monotone"
+              dataKey="brightnessAbove"
+              yAxisId="brightness"
+              stroke="none"
+              fill={AMBER}
+              fillOpacity={0.4}
+              activeDot={false}
+              isAnimationActive={false}
+            />
+          )}
+          {showClearCurve && (
+            <Line
+              type="monotone"
+              dataKey="brightnessThr"
+              yAxisId="brightness"
+              stroke={AMBER}
+              strokeWidth={1.5}
+              strokeDasharray="6 4"
+              name="Hranice jasno"
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+            />
+          )}
+
           {/* Linka minimální teploty u agregací */}
           {showTempRange && (
             <Line
@@ -280,6 +400,15 @@ export default function WeatherChart({ data, range, isLoading }) {
           )}
         </ChartComponent>
       </ResponsiveContainer>
+
+      {showClearCurve && (
+        <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+          <svg width="22" height="6" aria-hidden="true">
+            <line x1="0" y1="3" x2="22" y2="3" stroke={AMBER} strokeWidth="1.5" strokeDasharray="6 4" />
+          </svg>
+          hranice jasno: 70 % jasu za jasné oblohy při dané výšce Slunce
+        </div>
+      )}
 
       {/* Min/Max pro každou aktivní metriku */}
       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -310,6 +439,19 @@ export default function WeatherChart({ data, range, isLoading }) {
           );
         })}
       </div>
+
+      {/* Čas nad hranicí jasno */}
+      {clearSummary && (
+        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-end gap-x-6 gap-y-1">
+          <div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Nad hranicí jasno</div>
+            <div className="text-2xl font-bold text-amber-500">{clearSummary.total}</div>
+          </div>
+          {clearSummary.detail && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 pb-1">{clearSummary.detail}</div>
+          )}
+        </div>
+      )}
 
       {/* Rain bar (if data has rain) */}
       {data.some((d) => d.rain != null) && (
