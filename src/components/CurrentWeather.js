@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Thermometer,
   Sun,
@@ -26,6 +26,13 @@ import {
   formatTooltipTime,
 } from '@/lib/utils';
 import { useTodayStats, useReferenceTemp } from '@/hooks/useWeatherData';
+import dynamic from 'next/dynamic';
+
+// Okno s průběhem jasu (Recharts + astronomy-engine, ~130 kB) se načte až po kliknutí
+const BrightnessDayModal = dynamic(() => import('./BrightnessDayModal'), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 z-[100] bg-black/50" />,
+});
 
 const SKY_ICONS = {
   night: Moon,
@@ -98,26 +105,6 @@ function DetailPopup({ type, stats, onClose }) {
         />
       </>
     );
-  } else if (type === 'brightness') {
-    const { min, max } = stats.brightness;
-    content = (
-      <>
-        <StatRow
-          label="Max"
-          icon={TrendingUp}
-          value={max ? formatBrightness(max.value) : '--'}
-          time={max ? formatTime(max.timestamp) : '--'}
-          color="text-yellow-500"
-        />
-        <StatRow
-          label="Min"
-          icon={TrendingDown}
-          value={min ? formatBrightness(min.value) : '--'}
-          time={min ? formatTime(min.timestamp) : '--'}
-          color="text-gray-400"
-        />
-      </>
-    );
   } else if (type === 'wind') {
     const { min, max } = stats.wind;
     content = (
@@ -177,6 +164,7 @@ function DetailPopup({ type, stats, onClose }) {
 
 function WeatherCard({ icon: Icon, label, value, detail, subDetail, className, iconColor, type, stats }) {
   const [open, setOpen] = useState(false);
+  const closeDetail = useCallback(() => setOpen(false), []);
 
   return (
     <div className="relative h-full">
@@ -196,8 +184,10 @@ function WeatherCard({ icon: Icon, label, value, detail, subDetail, className, i
           <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{subDetail}</div>
         )}
       </button>
-      {open && (
-        <DetailPopup type={type} stats={stats} onClose={() => setOpen(false)} />
+      {/* Jas má místo malého popupu okno s průběhem dne */}
+      {open && type === 'brightness' && <BrightnessDayModal onClose={closeDetail} />}
+      {open && type !== 'brightness' && (
+        <DetailPopup type={type} stats={stats} onClose={closeDetail} />
       )}
     </div>
   );

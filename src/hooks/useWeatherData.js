@@ -23,6 +23,24 @@ export function useCurrentWeather() {
   };
 }
 
+// Hook pro minutová data jednoho dne (okno „Průběh jasu“).
+// from/to = Date; `live` = dnešek, obnovuje se jako aktuální data. null from = nic nenačítat.
+export function useDayHistory(from, to, live) {
+  const url = from
+    ? `/api/history?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`
+    : null;
+  const { data, error, isLoading } = useSWR(url, fetcher, {
+    refreshInterval: live ? POLL_INTERVAL : 0,
+    revalidateOnFocus: live,
+  });
+
+  return {
+    history: data,
+    isLoading,
+    isError: !!error || !!data?.error,
+  };
+}
+
 // Hook pro referenční venkovní teplotu z čidla kotle Viessmann (projekt p100)
 export function useReferenceTemp() {
   const { data, error, isLoading } = useSWR('/api/reference-temp', fetcher, {

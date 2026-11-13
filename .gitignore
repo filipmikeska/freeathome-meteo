@@ -46,3 +46,6 @@ rpi/node_modules
 .vercel
 last-write.txt
 last-write.txt.tmp
+
+# brainstorming mockups
+.superpowers/

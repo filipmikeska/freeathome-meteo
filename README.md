@@ -10,7 +10,9 @@ Produkce: **https://meteopacetluky.cz**
 Záložka **Počasí**
 - Aktuální hodnoty: teplota, rychlost větru, jas (lux), srážky. Obnovují se každých 60 s.
 - Referenční venkovní teplota z čidla kotle Viessmann (volitelná, z jiné databáze).
-- Dnešní minima a maxima podle pražského dne.
+- Dnešní minima a maxima podle pražského dne (klik na dlaždici).
+- Klik na dlaždici **Jas** otevře průběh jasu během dne s hranicí „jasno“ (40 klx) a časem nad ní.
+  Slouží k odhadu, jestli fotovoltaika ohřála vodu. Šipkami lze listovat do minulých dnů.
 - Interaktivní grafy: 24 h, 7 dní, 30 dní a vlastní rozsah. U agregovaných dat se zobrazuje pás min–max.
 - Východ a západ Slunce, fáze Měsíce. Fáze Měsíce se počítá lokálně přes `astronomy-engine`.
 
